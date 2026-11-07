@@ -20,6 +20,7 @@ import { mkdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { capture, connectApp, playwright, waitTeam } from './desktop-linux/lib.mjs'
+import { checkSidebarStability } from './sidebar-stability.mjs'
 
 const [mode, repo, outDir, target, webPort] = process.argv.slice(2)
 if (!['desktop', 'web'].includes(mode) || !repo || !outDir || !target || (mode === 'web' && !webPort)) {
@@ -117,6 +118,8 @@ await api('set-flags', { id: writer.id, pinned: true })
 check(await page.locator(`${writerRow} .bt-pin`).waitFor({ timeout: 10_000 }).then(() => true, () => false), 'a pinned Bot shows a pin beside its name')
 await page.waitForTimeout(600)
 await shot('sidebar')
+await checkSidebarStability(page)
+check(true, 'section toggles and list scrolling keep the Main Bot and header buttons still')
 
 await openRow(writerRow)
 await send('你好，介绍一下你自己')

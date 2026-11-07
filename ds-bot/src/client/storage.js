@@ -10,6 +10,7 @@ export const STORAGE = {
   agentSessions: 'ds-bot:agent-sessions',
   browserWidth: 'ds-bot:browser-width',
   sidebar: 'ds-bot:sidebar',
+  sections: 'ds-bot:sections',
   browsers: 'ds-bot.browser.v2',
 }
 

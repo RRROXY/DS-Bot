@@ -16,6 +16,8 @@ import { showsDshRow } from './dsh-offer.js'
 import { quietly } from './diagnostics.js'
 import { frameLayout, dragColumn, RAIL_WIDTH, FALLBACK_SIDEBAR_WIDTH, userSidebarToggle } from './frame-layout.js'
 import { chatRoom, dshCollapsed } from './frame-watch.js'
+import { sharedMap, setEntry } from './shared-map.js'
+import { STORAGE } from './storage.js'
 
 // -------------------------------------------------------------------------
 // Sidebar
@@ -305,6 +307,26 @@ const bootHint = () => {
     : t('The Bot team could not start. {error}. The engine’s startup output — its console, or the app’s startup error box — has the cause.', { error: last })
 }
 
+function SidebarSection({ name, entries, team, children }) {
+  const store = useMemo(() => sharedMap(STORAGE.sections), [])
+  const key = JSON.stringify([team, name])
+  const [closed, setClosed] = useState(() => store.read()[key] === true)
+  useEffect(() => {
+    const sync = event => { if (event.key === store.key) setClosed(store.read()[key] === true) }
+    window.addEventListener('storage', sync)
+    return () => window.removeEventListener('storage', sync)
+  }, [store, key])
+  return h('section', { className: 'bt-section', 'aria-label': name || t('Ungrouped') },
+    h('button', {
+      type: 'button', className: 'bt-section-heading', 'aria-expanded': !closed,
+      onClick: () => {
+        store.update(value => setEntry(value, key, !closed || undefined))
+        setClosed(!closed)
+      },
+    }, h('span', null, name || t('Ungrouped')), h('span', null, entries.length)),
+    closed ? null : children)
+}
+
 export function TeamSidebar(props) {
   const { wide, useRoster, useUi, useSessions, actions } = props
   const listRef = useRef(null)
@@ -335,6 +357,7 @@ export function TeamSidebar(props) {
     for (const id of list.ids) stamps[id] = list.byId[id]?.updatedAt ?? 0
     return JSON.stringify(stamps)
   })
+  const activeIds = useSessions(list => Object.values(list.byId).filter(session => (session?.retainedBy?.mainView ?? 0) > 0).map(session => session.id).join(','))
   const order = useMemo(() => {
     const stamps = JSON.parse(updated)
     const entries = [
@@ -343,10 +366,17 @@ export function TeamSidebar(props) {
       // The Agent sorts by its most recent Session, falling back to when it was added.
       ...(roster.agents ?? []).map(agent => ({ kind: 'agent', item: agent, at: Math.max(0, ...agent.sessions.map(id => stamps[id] ?? 0)) || agent.createdAt })),
     ]
-    return entries.sort((a, b) => Number(Boolean(b.item.pinned)) - Number(Boolean(a.item.pinned)) || b.at - a.at)
-  }, [roster, updated])
+    const active = new Set(activeIds.split(','))
+    return entries.filter(({ item }) => !item.hidden || active.has(item.sessionId ?? item.id) || isMainOf(roster, item.id)).sort((a, b) => Number(Boolean(b.item.pinned)) - Number(Boolean(a.item.pinned)) || b.at - a.at)
+  }, [roster, updated, activeIds])
+  const sections = new Map()
+  for (const entry of order) {
+    const name = entry.item.category ?? ''
+    if (!sections.has(name)) sections.set(name, [])
+    sections.get(name).push(entry)
+  }
   const main = roster.byId[roster.mainBotId]
-  useListGlide(listRef, wideContent, order.map(entry => entry.item.id).join(','))
+  useListGlide(listRef, wideContent, order.map(entry => `${entry.item.id}:${entry.item.category ?? ''}`).join(','))
   useLandOnMainBot(roster, useSessions, actions)
   useReportReady(roster.ready, roster)
 
@@ -584,16 +614,19 @@ export function TeamSidebar(props) {
     : h('div', { className: 'bt-leftcol-foot bt-leftcol-foot-rail' },
         h('button', { type: 'button', className: 'bt-round', 'aria-label': t('New…'), title: t('New…'), onClick: () => actions.openNewChat('new') }, h(PlusIcon)),
         h(AccountLauncher, { seat: false, actions }))
+  const renderRow = entry => (entry.kind === 'bot'
+    ? h(BotRow, { key: entry.item.id, ...rowProps, bot: entry.item, marked: markedUnread[entry.item.id] === true })
+    : entry.kind === 'room'
+      ? h(RoomRow, { key: entry.item.id, ...rowProps, room: entry.item, marked: markedUnread[entry.item.id] === true })
+      : h(AgentRow, { key: entry.item.id, ...rowProps, agent: entry.item, marked: markedUnread[entry.item.id] === true }))
   const content = h('div', { className: wideContent ? 'bt-side' : 'bt-side bt-rail', onKeyDown: typeToSearch },
     top,
     wideContent && roster.readOnly ? h('div', { className: 'bt-hint bt-read-only', role: 'status' }, hostText(roster.readOnly)) : null,
+    wideContent ? (main ? h(BotRow, { ...rowProps, bot: main, marked: markedUnread[main.id] === true }) : roster.ready ? null : h('div', { className: 'bt-hint' }, bootFailed ? bootHint() : t('Setting up your Main Bot…'))) : null,
     h('div', { ref: listRef, className: 'bt-list', role: 'region', 'aria-label': t('Bot list') },
-      wideContent ? (main ? h(BotRow, { ...rowProps, bot: main, marked: markedUnread[main.id] === true }) : roster.ready ? null : h('div', { className: 'bt-hint' }, bootFailed ? bootHint() : t('Setting up your Main Bot…'))) : null,
-      order.map(entry => (entry.kind === 'bot'
-        ? h(BotRow, { key: entry.item.id, ...rowProps, bot: entry.item, marked: markedUnread[entry.item.id] === true })
-        : entry.kind === 'room'
-          ? h(RoomRow, { key: entry.item.id, ...rowProps, room: entry.item, marked: markedUnread[entry.item.id] === true })
-          : h(AgentRow, { key: entry.item.id, ...rowProps, agent: entry.item, marked: markedUnread[entry.item.id] === true })))),
+      wideContent
+        ? [...sections].sort(([a], [b]) => !a ? 1 : !b ? -1 : a.localeCompare(b)).map(([name, entries]) => h(SidebarSection, { key: JSON.stringify([roster.mainBotId, name]), name, entries, team: roster.mainBotId }, entries.map(renderRow)))
+        : order.map(renderRow)),
     foot)
   return h(Fragment, null,
     h(TitleToggle, { hidden: mode === 'hidden', onToggle }),

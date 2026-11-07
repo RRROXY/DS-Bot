@@ -29,7 +29,7 @@ runInNewContext(bundle.outputFiles[0].text, {
 })
 const { ChatRows, ThinkingRow, syncGroupChains } = module.exports
 
-const roster = { byId: { b: { id: 'b', name: 'Writer' } }, roomsById: {} }
+const roster = { prefs: { layout: 'bubble' }, byId: { b: { id: 'b', name: 'Writer' } }, roomsById: {} }
 const MINUTE = 60_000
 const shape = rows => [...rows].map(row => (row.props.className === 'bt-time-sep' ? 'clock' : row.type.name === 'Bubbles' ? `bot:${row.props.texts.join('+')}` : row.type.name))
 

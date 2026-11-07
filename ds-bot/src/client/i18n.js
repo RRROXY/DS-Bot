@@ -7,6 +7,12 @@ export const NAMESPACE = 'ds-bot'
 const ZH = {
   // Shared
   'Main Bot': '主 Bot',
+  'Team': '团队',
+  'Move to section': '移至分组',
+  'Sidebar section': '侧栏分组',
+  'New section name': '新分组名称',
+  'New section…': '新建分组…',
+  'Ungrouped': '未分组',
   Working: '进行中',
   'Waiting for your answer': '等你回答',
   'Waiting for {names}': '等 {names} 交回',

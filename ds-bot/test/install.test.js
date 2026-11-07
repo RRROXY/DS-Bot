@@ -285,3 +285,28 @@ test('persisted active tasks become interrupted on load before worker recovery',
   assert.equal(rt.state.bots.chief.tasks[0].status, 'interrupted')
   assert.equal(JSON.parse(readFileSync(rt.statePath, 'utf8')).bots.chief.tasks[0].status, 'interrupted')
 })
+
+
+test('sidebar sections persist without changing conversation identity or flags', async t => {
+  const { call, stop, rt } = start({ version: 1, mainBotId: 'chief', bots: {
+    chief: { id: 'chief', name: 'Chief', instructions: '', createdAt: 1 },
+    writer: { id: 'writer', name: 'Writer', instructions: '', createdAt: 2, pinned: true },
+  }, rooms: { room: { id: 'room', name: 'Project', members: ['chief', 'writer'], createdAt: 3 } } })
+  t.after(stop)
+  assert.equal((await call('set-flags', { id: 'writer', category: '  Work  ' })).ok, true)
+  assert.equal((await call('set-flags', { id: 'room', category: 'Work' })).ok, true)
+  const view = (await call('state')).value
+  assert.equal(view.bots.find(bot => bot.id === 'writer').category, 'Work')
+  assert.equal(view.bots.find(bot => bot.id === 'writer').pinned, true)
+  assert.deepEqual(view.rooms[0].members, ['chief', 'writer'])
+  const disk = JSON.parse(readFileSync(join(rt.home, 'state.json'), 'utf8'))
+  assert.equal(disk.bots.writer.category, 'Work')
+  assert.equal(disk.rooms.room.category, 'Work')
+  for (const category of [42, {}, 'x'.repeat(49)]) {
+    assert.equal((await call('set-flags', { id: 'writer', category, pinned: false })).ok, false)
+    assert.equal(rt.state.bots.writer.pinned, true)
+    assert.equal(rt.state.bots.writer.category, 'Work')
+  }
+  assert.equal((await call('set-flags', { id: 'writer', category: null })).ok, true)
+  assert.equal('category' in rt.state.bots.writer, false)
+})

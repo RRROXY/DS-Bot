@@ -1,7 +1,7 @@
 import { createElement as h, Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isMainOf } from './sources.js'
 import { currentPart } from './text.js'
-import { GearIcon, PinIcon, UnreadIcon, PencilIcon, StarLineIcon, CopyIcon, HideIcon, TrashIcon, DuplicateIcon } from './icons.js'
+import { GearIcon, PinIcon, UnreadIcon, PencilIcon, StarLineIcon, CopyIcon, HideIcon, TrashIcon, DuplicateIcon, FolderIcon } from './icons.js'
 import { useEscape } from './overlay-hooks.js'
 import { stepMenuFocus, useViewport, viewBottom } from './motion.js'
 import { t } from './i18n.js'
@@ -12,18 +12,26 @@ export function ContextMenu({ menu, roster, actions, leaving = false }) {
   const trigger = useRef(typeof document === 'undefined' ? null : document.activeElement)
   useEffect(() => {
     const onDown = (event) => { if (!(event.target instanceof Element) || !event.target.closest('.bt-menu')) actions.closeMenu() }
-    const onKey = (event) => { stepMenuFocus(ref.current, event, trigger.current) }
+    const onKey = (event) => { if (!event.target?.closest?.('.bt-category-edit')) stepMenuFocus(ref.current, event, trigger.current) }
     window.addEventListener('mousedown', onDown)
     window.addEventListener('keydown', onKey, true)
     return () => { window.removeEventListener('mousedown', onDown); window.removeEventListener('keydown', onKey, true) }
   }, [])
+  const [editingSection, setEditingSection] = useState(false)
   const [place, setPlace] = useState({ left: menu.x, top: menu.y })
   const tick = useViewport()
   useLayoutEffect(() => {
-    const box = ref.current?.getBoundingClientRect()
-    if (!box) return
-    setPlace({ left: Math.max(8, Math.min(menu.x, window.innerWidth - box.width - 8)), top: Math.max(8, Math.min(menu.y, viewBottom() - box.height - 8)) })
-  }, [menu.x, menu.y, tick])
+    const node = ref.current
+    if (!node) return undefined
+    const measure = () => {
+      const box = node.getBoundingClientRect()
+      setPlace({ left: Math.max(8, Math.min(menu.x, window.innerWidth - box.width - 8)), top: Math.max(8, Math.min(menu.y, viewBottom() - box.height - 8)) })
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [menu.x, menu.y, tick, editingSection])
   if (menu.kind === 'agent' || menu.kind === 'agent-session') return h(AgentMenu, { menu, roster, actions, leaving })
   const bot = roster.byId[menu.id]
   const room = roster.roomsById[menu.id]
@@ -36,6 +44,7 @@ export function ContextMenu({ menu, roster, actions, leaving = false }) {
     [
       isTile ? null : [entry.pinned ? t('Unpin') : t('Pin'), PinIcon, () => actions.setFlags(menu.id, { pinned: !entry.pinned })],
       [t('Mark as Unread'), UnreadIcon, () => actions.markUnread(menu.id)],
+      isTile ? null : [t('Move to section'), FolderIcon, () => setEditingSection(true), false, true],
     ],
     [
       bot ? [t('Rename Bot'), PencilIcon, () => actions.renameBot(bot.id)] : null,
@@ -52,12 +61,12 @@ export function ContextMenu({ menu, roster, actions, leaving = false }) {
       isMainBot ? null : [room ? t('Delete group') : t('Delete'), TrashIcon, () => (bot ? actions.deleteBot(bot.id) : actions.deleteRoom(menu.id)), true],
     ],
   ].map(group => group.filter(Boolean)).filter(group => group.length > 0)
-  return h('div', { ref, className: 'bt-menu', role: 'menu', 'aria-label': t('{name} actions', { name: bot?.name ?? room.name }), style: place, 'data-leaving': leaving || undefined },
-    groups.map((group, index) => h(Fragment, { key: index },
+  return h('div', { ref, className: 'bt-menu', role: editingSection ? 'dialog' : 'menu', 'aria-label': t('{name} actions', { name: bot?.name ?? room.name }), style: place, 'data-leaving': leaving || undefined },
+    editingSection ? h(SectionEditor, { entry, roster, actions, onCancel: () => setEditingSection(false) }) : groups.map((group, index) => h(Fragment, { key: index },
       index > 0 ? h('div', { className: 'bt-menu-sep', role: 'separator' }) : null,
-      group.map(([label, Icon, run, danger]) => h('button', {
+      group.map(([label, Icon, run, danger, stay]) => h('button', {
         key: label, type: 'button', role: 'menuitem', className: danger ? 'bt-danger' : undefined,
-        onClick: () => { actions.closeMenu(); void Promise.resolve(run()).catch(error => actions.reportError(error, 'menu')) },
+        onClick: () => { if (!stay) actions.closeMenu(); void Promise.resolve(run()).catch(error => actions.reportError(error, 'menu')) },
       }, h(Icon), label)))))
 }
 
@@ -103,4 +112,30 @@ function AgentMenu({ menu, roster, actions, leaving }) {
         key: label, type: 'button', role: 'menuitem', className: danger ? 'bt-danger' : undefined,
         onClick: () => { actions.closeMenu(); void Promise.resolve(run()).catch(error => console.warn('[ds-bot]', error)) },
       }, h(Icon), label)))))
+}
+
+function SectionEditor({ entry, roster, actions, onCancel }) {
+  const names = [...new Set([...roster.bots, ...roster.rooms, ...(roster.agents ?? [])].map(item => item.category).filter(Boolean))].sort((a, b) => a.localeCompare(b))
+  const [selected, setSelected] = useState(entry.category ?? '')
+  const [name, setName] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const save = async event => {
+    event.preventDefault()
+    setSaving(true)
+    try {
+      await actions.setFlags(entry.id, { category: selected === null ? name.trim() : selected })
+      actions.closeMenu()
+    } catch (error) { setError(error.message); setSaving(false) }
+  }
+  return h('form', { className: 'bt-category-edit', onSubmit: save, onKeyDown: event => event.stopPropagation() },
+    h('label', null, t('Sidebar section'), h('select', { value: selected === null ? '__new__' : `section:${selected}`, onChange: event => setSelected(event.target.value === '__new__' ? null : event.target.value.slice(8)), autoFocus: true },
+      h('option', { value: 'section:' }, t('Ungrouped')),
+      names.map(value => h('option', { key: value, value: `section:${value}` }, value)),
+      h('option', { value: '__new__' }, t('New section…')))),
+    selected === null ? h('input', { value: name, maxLength: 48, 'aria-label': t('New section name'), placeholder: t('New section name'), onChange: event => setName(event.target.value), autoFocus: true }) : null,
+    error ? h('span', { role: 'alert', className: 'bt-danger' }, error) : null,
+    h('footer', null,
+      h('button', { type: 'button', disabled: saving, onClick: onCancel }, t('Cancel')),
+      h('button', { type: 'submit', disabled: saving || (selected === null && !name.trim()) }, t('Save'))))
 }

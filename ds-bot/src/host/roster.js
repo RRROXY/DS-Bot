@@ -432,9 +432,14 @@ export function install(rt) {
     return bot
   }
 
-  async function setFlags(id, { pinned, hidden }) {
+  async function setFlags(id, { pinned, hidden, category }) {
     const entry = rt.botOf(id) ?? rt.roomOf(id) ?? rt.own(state.agents, id)
     if (entry === undefined) throw new Error('Unknown conversation')
+    if (category !== undefined) {
+      if (category !== null && (typeof category !== 'string' || category.trim().length > 48)) throw new Error('Sidebar section must be at most 48 characters')
+      if (category === null || category.trim() === '') delete entry.category
+      else entry.category = category.trim()
+    }
     if (typeof pinned === 'boolean') entry.pinned = pinned
     if (typeof hidden === 'boolean') entry.hidden = hidden
     await rt.save()

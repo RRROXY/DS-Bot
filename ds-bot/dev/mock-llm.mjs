@@ -467,6 +467,8 @@ function decide(body) {
   if ((order = /^搜索\s*[:：]\s*([^\n]+)/.exec(userText)) && tools.has('web_search')) return [tool('web_search', { queries: order[1].trim().split(/\s*[|｜]\s*/) })]
   if ((order = /^进目录\s+(.+)$/.exec(userText)) && tools.has('working_directory')) return [tool('working_directory', { cd: order[1].trim() })]
   if (/^看(?:网页|页面)/.test(userText) && tools.has('read_browser')) return [tool('read_browser', {})]
+  if (userText === '界面预览：整理项目计划') return [text('先把项目分成三部分：建设范围、交付清单和待确认事项。\n\n建设范围按现场实际需要逐项列出，设备数量、安装位置和施工边界分别核对。交付清单同步记录设备、配置说明、测试记录和验收材料，方便后面逐项检查。\n\n目前还需要确认实施时间、现场配合人员和验收安排。这三项明确后，再把计划细化到每个阶段。')]
+  if (userText === '界面预览：下一步安排') return [text('接下来先整理已有材料，并把缺项单独列出来。\n\n方案部分形成一份可核对的初稿；测算部分核对数量、单价和费用范围；合同部分检查交付内容与验收约定是否一致。\n\n需要你确认的地方会保留清楚的标记，确认后再更新。')]
   if (userText.startsWith('写成文字')) return [text(WRITTEN_CALL)]
   // Context-line tests: grow the context, run a long multi-step turn, search history.
   if ((order = /^(?:长文|long)\s*(\d+)/.exec(userText))) return [text(filler(Number(order[1]) * 1000, '长文'))]

@@ -3,8 +3,14 @@
 // margins (our own column on the left, the Bot panel on the right).
 import { installStyles } from './styles.js'
 
-export const sidebarTrackWidth = () =>
-  typeof document === 'undefined' ? null : document.querySelector('[class*="_sidebarCol"]')?.getBoundingClientRect().width ?? null
+export const sidebarTrackWidth = () => {
+  if (typeof document === 'undefined') return null
+  const column = document.querySelector('[class*="_sidebarCol"]')
+  if (!column) return null
+  // The narrow host sidebar is an off-canvas drawer, not a grid track.
+  const position = getComputedStyle(column).position
+  return position === 'absolute' || position === 'fixed' ? 0 : column.getBoundingClientRect().width
+}
 
 // The shell frame marks itself [data-sidebar-collapsed]; null when no frame is found.
 export const dshCollapsed = () => {

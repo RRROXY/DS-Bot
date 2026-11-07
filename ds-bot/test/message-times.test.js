@@ -74,7 +74,7 @@ test('a user message without a real time draws no time node', () => {
   assert.equal(times(UserMessageCell(userProps({ time: 'later' }))).length, 0)
 })
 
-const assistantProps = (data = {}, rosterPrefs) => ({
+const assistantProps = (data = {}, rosterPrefs = { layout: 'bubble' }) => ({
   node: {
     key: 'n10',
     location: { kind: 'step', turn: { turn: 3, status: 'closed', end: { time: 2_000 } } },
