@@ -23,7 +23,10 @@ export function install(rt) {
   }
   const controller = id => enabled && rt.chatOwners.has(id) && !rt.isLocalAgentSession?.(id)
   const view = task => ({ id: task.id, sessionId: task.sessionId, title: task.title, status: task.status, result: task.result, updatedAt: task.updatedAt })
-  const visible = botId => [...tasks(botId).filter(task => ACTIVE.has(task.status)), ...tasks(botId).filter(task => !ACTIVE.has(task.status)).slice(-10)].map(task => ({ ...view(task), result: task.result?.slice(-2000) }))
+  const visible = (botId, includeResults = false) => [...tasks(botId).filter(task => ACTIVE.has(task.status)), ...tasks(botId).filter(task => !task.archivedAt && !ACTIVE.has(task.status)).slice(-10)].map(task => {
+    const { result, ...metadata } = view(task)
+    return includeResults ? { ...metadata, result: result?.slice(-2000) } : metadata
+  })
   const save = () => rt.save({ required: true })
   const guard = () => {
     if (disposed) throw new Error('Task dispatcher stopped.')
@@ -46,10 +49,18 @@ export function install(rt) {
   }
   const contentFrom = (agent, instruction) => {
     const snapshot = snapshotOf(agent.session, ctx.get?.('sessionProjections'))
-    const recent = snapshot.messages.filter(message => message.role === 'assistant' || (message.role === 'user' && message.source?.kind === 'user')).slice(-12)
-    const context = recent.map(message => `${message.role}: ${textOf(message.content)}`).join('\n\n').slice(-24000)
+    const recent = snapshot.messages.filter(message => message.role === 'assistant' || (message.role === 'user' && message.source?.kind === 'user')).slice(-6)
+    const context = recent.map(message => `${message.role}: ${textOf(message.content)}`).join('\n\n').slice(-6000)
+    const seen = new Set()
     const attachments = recent.filter(message => message.role === 'user').flatMap(message => message.content ?? [])
       .filter(block => (block.type === 'image' || block.type === 'file') && block.attachment !== undefined)
+      .filter(block => {
+        const key = block.attachment.attachmentId
+        if (!key) return true
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
     return [{ type: 'text', text: `Background context only; do not resume other tasks:\n${context}\n\nYour task (do only this work):\n${instruction}` }, ...attachments]
   }
   async function start(botId, { title, instruction, request_id }, parent) {
@@ -104,6 +115,7 @@ export function install(rt) {
       guard()
       // A completed task may be explicitly continued; it keeps its own context.
       task.status = 'running'
+      delete task.archivedAt
       delete rt.state.questions[task.sessionId]
       task.updatedAt = Date.now()
       delete task.result
@@ -131,11 +143,29 @@ export function install(rt) {
       return selected.map(view)
     })
   }
+  async function archive(botId, taskId, restore = false) {
+    return serial(botId, async () => {
+      if (!rt.botOf(botId)) throw new Error('Unknown Bot.')
+      const selected = taskId === 'all' ? tasks(botId).filter(task => !ACTIVE.has(task.status) && !task.archivedAt) : [owned(botId, taskId)]
+      if (selected.some(task => ACTIVE.has(task.status))) throw new Error('Stop the task before removing it.')
+      const previous = selected.map(task => task.archivedAt)
+      for (const task of selected) {
+        if (restore) delete task.archivedAt
+        else task.archivedAt = Date.now()
+      }
+      try { await save() }
+      catch (error) {
+        selected.forEach((task, index) => { if (previous[index] === undefined) delete task.archivedAt; else task.archivedAt = previous[index] })
+        throw error
+      }
+      return selected.map(view)
+    })
+  }
   if (enabled) {
     for (const [name, description, parameters, run] of [
       ['start_bot_task', 'Start independent work as this same Bot in a visible task conversation. Returns immediately; never wait for it. Reuse request_id only for an identical retry. Put corrections in update_bot_task.', { title: required('Short task name'), instruction: required('Complete task, constraints and relevant file paths'), request_id: required('Stable unique name for this request') }, (botId, args, exec) => start(botId, args, exec.agent)],
       ['update_bot_task', 'Send a supplement or correction to an existing task at its next step. Does not cancel or duplicate the task.', { task_id: required('Task id from list_bot_tasks'), text: required('Exact supplement or correction') }, (botId, args, exec) => update(botId, args.task_id, args.text, exec.agent)],
-      ['list_bot_tasks', 'List this Bot’s tasks, current status and latest result. Use to identify the target of a follow-up.', {}, async botId => visible(botId)],
+      ['list_bot_tasks', 'Read recent task results when needed. Current task ids, titles and statuses are already in your system context; do not query again just to route a message.', {}, async botId => visible(botId, true)],
       ['stop_bot_task', 'Stop one task, or all this Bot’s tasks when the user says stop without a narrower target.', { task_id: required('Task id, or all') }, (botId, args) => stop(botId, args.task_id)],
     ]) rt.teamTools.push(defineTool({ name, description, parameters, output, async execute(args, exec) {
       await rt.load()
@@ -173,7 +203,7 @@ export function install(rt) {
     }
     else if (event.type === 'assistant/message') {
       const text = textOf(event.data?.message?.content)
-      if (text) texts.set(session.id, [...(texts.get(session.id) ?? []), text])
+      if (text) texts.set(session.id, [text.slice(-12000)])
       return
     } else if (event.type === 'turn/end') {
       const reason = event.data?.reason?.kind
@@ -192,19 +222,20 @@ export function install(rt) {
       // Results wake the dispatcher to summarize; a task result cannot create a
       // task unless the dispatcher finds a fresh, explicit user request for it.
       const parent = await rt.resolveAgent(rt.chatOf(botId))
-      parent.followup(createUserMessage({ content: [{ type: 'text', text: `${ended.title}: ${ended.status}\n\n${ended.result || 'No final text. Open the task to inspect its state.'}\n\n[Task update: ${ended.id}] Report this status accurately. This is a result, not a request to start or repeat work.` }], source: { kind: 'bot-task', form: 'notice', summary: `${ended.title}: ${ended.status}`.slice(0, 120), taskId: ended.id } }))
+      parent.followup(createUserMessage({ content: [{ type: 'text', text: `${ended.title}: ${ended.status}\n\n${ended.result || 'No final text. Open the task to inspect its state.'}\n\n[Task update: ${ended.id}] Give the user the actual result or deliverable concisely. For waiting, ask the necessary question; for failure, say what remains incomplete. Do not narrate internal steps, task ids or routing. This is a result, not a request to start or repeat work.` }], source: { kind: 'bot-task', form: 'notice', summary: `${ended.title}: ${ended.status}`.slice(0, 120), taskId: ended.id } }))
       await ctx.sessions.flush(parent.session)
     }).catch(error => rt.warn('ds-bot: task status save failed: %s', error?.message))
   })
   ctx.effect(() => () => { disposed = true }, 'ds-bot: task dispatcher')
   Object.assign(rt, {
     taskOf, interruptSavedTasks, taskSessionsOf: botId => tasks(botId).map(task => task.sessionId),
-    parallelTasksEnabled: enabled, isTaskController: controller, startBotTask: start, updateBotTask: update, stopBotTask: stop,
+    parallelTasksEnabled: enabled, isTaskController: controller, startBotTask: start, updateBotTask: update, stopBotTask: stop, archiveBotTask: archive,
     taskPrompt(id) {
       const task = taskOf(id)
-      if (task) return `\n## Independent task\nYou are working only on task "${task.title}" (${task.id}) for this Bot. Complete its work using your tools. Other tasks run separately. Do not resume unrelated work from background context. Do not create nested tasks. Your final answer and questions are reported to the main chat. Shared files and browser state are not isolated: do not overwrite another task's changes; use distinct output files and report conflicts. Never claim success without verification.`
+      if (task) return `\n## Independent task\nYou are working only on task "${task.title}" (${task.id}) for this Bot. Complete its work using your tools. The user wants results, not a work diary: do not narrate steps or send routine progress updates. Your final answer should give the deliverable, its location and only material limitations. Ask only when user input is necessary. Other tasks run separately. Do not resume unrelated work from background context. Do not create nested tasks. Your final answer and questions are reported to the main chat. Shared files and browser state are not isolated: do not overwrite another task's changes; use distinct output files and report conflicts. Never claim success without verification.`
+      if (!enabled && rt.chatOwners.has(id) && rt.config.directSteering === true) return '\n## Direct conversation\nWork directly in this chat using your tools. Independent Bot tasks are disabled; earlier messages about a task dispatcher no longer apply. Do not create or automatically resume separate task conversations. New user messages during work are supplements or corrections to the current request unless the user clearly changes the goal. Apply them at your next step, preserve the original objective and do not repeat completed actions. Give results and necessary questions, without routine progress narration. Ask for credentials only through request_secret here; never ask the user to paste a secret into chat or save it to a file as a workaround.'
       if (!controller(id)) return ''
-      return '\n## Responsive task dispatcher\nKeep this main chat available for new messages. Do not do tool-based work here. For each user message, inspect list_bot_tasks. Combine consecutive related messages into the same request. Send supplements, corrections, or answers to the matching existing task with update_bot_task; include every relevant detail. Start each independent new task with start_bot_task and return a brief acknowledgement immediately. Do not wait or poll for completion. Simple conversational answers need no task. If the target is ambiguous, ask one concise clarifying question before routing. Never infer a new task from a task result. When the user says stop, call stop_bot_task (all unless they named a task). Carry file paths and constraints into the task instruction. Parallel tasks share files and browsers: serialize work on the same mutable resource by waiting to start dependent work until its predecessor finishes. Task status and results will arrive here; report failures and interruptions as such.\nCurrent tasks: ' + JSON.stringify(visible(rt.selfOf(id)))
+      return '\n## Responsive task dispatcher\nKeep this main chat available for new messages. Do not do tool-based work here. Route messages using Current tasks below. Call list_bot_tasks only when the user needs a previous result; do not query it routinely or on result notifications. Combine consecutive related messages into the same request. Send supplements, corrections, or answers to the matching existing task with update_bot_task; include every relevant detail. Start each independent new task with start_bot_task and return at most one brief acknowledgement immediately, without tool names, internal task ids or a plan. The user wants results, not progress narration. Do not wait or poll for completion. Simple conversational answers need no task. If the target is ambiguous, ask one concise clarifying question before routing. Never infer a new task from a task result. When the user says stop, call stop_bot_task (all unless they named a task). Carry file paths and constraints into the task instruction. Parallel tasks share files and browsers: serialize work on the same mutable resource by waiting to start dependent work until its predecessor finishes. Task status and results will arrive here; report failures and interruptions as such.\nCurrent tasks: ' + JSON.stringify(visible(rt.selfOf(id)))
     },
   })
 }

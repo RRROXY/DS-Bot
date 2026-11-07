@@ -674,6 +674,7 @@ export function TriggerCell({ node, sessionId, useRoster, useSessions, useTurnCl
     : (body ?? h(CellEmpty))
 
   function triggerBody() {
+    if (source.kind === 'bot-task') return null
     if (source.kind === 'bot') {
       // A part opens with its handoff package, so the earlier parts go right above it.
       if (source.handoff === true) return h(EarlierParts, { sessionId, roster, actions })

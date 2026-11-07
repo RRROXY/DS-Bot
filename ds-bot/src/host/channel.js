@@ -37,6 +37,7 @@ export function install(rt) {
   const view = () => ({
     revision: state.revision,
     parallelTasks: rt.parallelTasksEnabled === true,
+    directSteering: rt.config.directSteering === true,
     workspaceId: state.workspaceId ?? null,
     // `mainBotId` is the first Main Bot, which the sidebar shows as its tile.
     mainBotId: state.mainBotIds[0] ?? null,
@@ -44,8 +45,10 @@ export function install(rt) {
     // `sessionId` is the Bot's current own-chat part; `parts` its earlier ones.
     // `waiting`: the Bot holds its greeting until the user picks its model or fixes
     // what failed it. `blocked`: the facts of a failure only the user can fix (turns.js).
-    bots: Object.values(state.bots).map(({ segments, kickoff, ...bot }) => ({
+    bots: Object.values(state.bots).map(({ segments, kickoff, tasks, ...bot }) => ({
       ...bot, sessionId: rt.chatOf(bot.id), parts: (segments ?? []).map(segment => segment.sessionId), ...(kickoff ? { waiting: true } : {}),
+      // Transcripts and dispatch payloads stay on the host; the roster needs only navigation metadata.
+      ...(tasks ? { tasks: tasks.map(({ id, sessionId, title, status, updatedAt, archivedAt }) => ({ id, sessionId, title, status, updatedAt, ...(archivedAt ? { archivedAt } : {}) })) } : {}),
       // `engine` is the Bot's local-agent route, present only on abots.
       ...(rt.localAgentBadge?.(bot.appliedModel ?? bot.model) !== undefined ? { engine: rt.localAgentBadge(bot.appliedModel ?? bot.model) } : {}),
     })),
@@ -514,6 +517,8 @@ export function install(rt) {
         // that chat ride along. Nothing is written into the Session.
         case 'task-stop':
           return ok(await rt.stopBotTask(body.botId, body.taskId))
+        case 'task-archive':
+          return ok(await rt.archiveBotTask(body.botId, body.taskId, body.restore === true))
         case 'task-update':
           return ok(await rt.updateBotTask(body.botId, body.taskId, body.text))
         case 'side-new': {

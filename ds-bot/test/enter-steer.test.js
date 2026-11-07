@@ -93,6 +93,13 @@ test('steerQueued reports other failures', async () => {
   assert.equal(await steerQueued(rejecting), 'failed')
 })
 
+test('a claimed first row does not leave a later supplement waiting for another turn', async () => {
+  const s = session([{ id: 'claimed', source: { kind: 'user' } }, { id: 'supplement', source: { kind: 'user' } }],
+    [{ ok: false, error: { code: 'session/queue-item-not-found' } }, { ok: true }])
+  assert.equal(await steerQueued(s), 'done')
+  assert.deepEqual(s.calls, [['claimed', { kind: 'steer' }], ['supplement', { kind: 'steer' }]])
+})
+
 test('steerQueued on an empty or other-source queue calls nothing', async () => {
   for (const queued of [[], [{ id: 'b1', source: { kind: 'bot' } }]]) {
     const s = session(queued)

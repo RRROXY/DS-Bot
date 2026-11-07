@@ -28,7 +28,8 @@ export const steerQueued = async (session) => {
       if (item.source?.kind !== 'user') continue
       const result = await session.updateQueue(item.id, { kind: 'steer' })
       if (result.ok) continue
-      return result.error.code === 'session/steer-unavailable' || result.error.code === 'session/queue-item-not-found' ? 'done' : 'failed'
+      if (result.error.code === 'session/queue-item-not-found') continue
+      return result.error.code === 'session/steer-unavailable' ? 'done' : 'failed'
     }
     return 'done'
   } catch {

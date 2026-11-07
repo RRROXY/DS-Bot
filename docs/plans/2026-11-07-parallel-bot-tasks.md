@@ -1,5 +1,17 @@
 # Same-Bot parallel tasks (personal fork)
 
+## Superseded default: direct conversation
+
+On November 7 the fork owner disabled Bot tasks after secure-card routing failures.
+The bundle now uses `parallelTasks: false` and `directSteering: true`. Main chats
+execute normally; their user queue entries are promoted using the documented
+Session updateQueue steer action when they appear. Other-source deliveries, groups
+and old task conversations are excluded. Existing task records are retained, the
+task menu is hidden, and no new task tools are registered. Busy model/tool calls
+finish before steering can be consumed; no DSH internals are patched.
+
+The following describes the retained experimental implementation, not the default.
+
 The fork owner requested a Bot that keeps accepting messages: corrections join the
 matching task, independent requests run concurrently. This intentionally changes
 the upstream single-private-worker design for this fork. No DSH patch is used.
@@ -27,10 +39,24 @@ main chat, whose acknowledgement must distinguish finished, failed and interrupt
 
 ## Visibility and lifecycle
 
-The composer dock lists active tasks and five recent closed tasks, with navigation
-into the original DSH transcript, return to the main chat and individual/all-task
-stop. The main chat's existing stop button stops its own turn only; Stop all tasks
-in the task dock stops workers. Saying stop is routed by the dispatcher.
+The fork owner requested result-first conversation on November 7: no permanent
+task panel or count. Composer **＋ → Bot tasks** opens a dismissible dialog with
+navigation, individual/all-task stop and recoverable removal of ended tasks.
+Removed records retain Session ownership and request deduplication. Restore or
+explicit continuation returns them to the current list; removal is not disk cleanup.
+The main chat's stop button stops its own turn only; Stop all tasks in the dialog
+stops workers. Saying stop is routed by the dispatcher. Internal result notices
+are hidden; the assistant gives the actual result or necessary question.
+
+Background context is limited to six recent messages and 6000 text characters;
+attachment references are deduplicated. The complete task instruction is separate
+and still required. The dispatcher receives active/recent task metadata without
+repeating result bodies in each step. It queries previous results only when needed.
+The worker's latest answer alone is retained as the bounded result cache, rather
+than accumulating progress narration. The UI roster contains navigation metadata,
+not instructions, deduplication keys or full results. Durable DSH transcripts stay
+intact and are opened on demand. These are payload/context bounds, not a promise
+of lower total bill: independent work and result summarization still call the model.
 Task records and ownership are saved before initial dispatch. On restart, active
 records are marked interrupted; no tool work is automatically replayed by this
 module. A user may inspect and explicitly continue a task. Bot deletion includes

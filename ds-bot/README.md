@@ -6,15 +6,13 @@ The DS Bot plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek
 
 Tested with dsh `0.2.2-rc.1` (Web and Desktop).
 
-## Same-Bot tasks in this fork
+## Direct conversation in this fork
 
-The bundle enables `parallelTasks: true`: the main chat dispatches independent work
-into visible task Sessions and steers corrections to an existing task. At most four
-tasks run per Bot. Inspect and stop them in **Bot tasks** above the composer. Files
-and browsers remain shared; classification is model-driven. After interruption,
-inspect the task and request continuation in the main chat. Groups and local-agent
-CLI Bots keep their existing behavior. Set `parallelTasks: false` to restore the
-upstream behavior; set `localAgents: false` in mock benches to disable CLI probes.
+The bundle disables independent Bot tasks (`parallelTasks: false`) and enables
+`directSteering: true`. The main chat executes work and automatically steers new
+user messages at the next step, using the existing DSH queue API. It does not
+cancel a model request or tool already running. Secret cards stay in this chat.
+The task menu is hidden; existing task transcripts and UI preferences are retained.
 
 ## Temporary request failures
 

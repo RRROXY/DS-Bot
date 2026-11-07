@@ -135,6 +135,9 @@ function decide(body) {
   // The same-Bot routing fixture uses ordinary user messages and real task tools.
   // Its workers run a foreground shell command so the bench can observe overlap.
   const taskLine = textOf(last?.content).trim()
+  if (last?.role === 'user' && !isResults(last) && taskLine === '直接引导测试：开始') return [tool('bash', { command: "sleep 12; printf 'direct-steer-tool-completed\\n'", description: 'Run the isolated steering fixture' })]
+  if (last?.role === 'user' && taskLine.includes('直接引导测试：改为中文')) return [text('已采用补充要求：用中文交付。')]
+  if (last?.role === 'user' && !isResults(last) && taskLine === '安全卡片测试') return [tool('request_secret', { name: 'MOCK_SERVICE_KEY', purpose: 'Isolated secure-card test' })]
   if (system.includes('## Responsive task dispatcher') && last?.role === 'user' && !isResults(last)) {
     const start = /^并行测试：([AB])$/.exec(taskLine)
     if (start) return [tool('start_bot_task', { title: `任务 ${start[1]}`, instruction: `parallel-fixture-${start[1]}`, request_id: `parallel-${start[1]}` })]

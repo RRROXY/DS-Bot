@@ -4,7 +4,8 @@
     - id: bot
       name: ds-bot
       config:
-        parallelTasks: true
+        parallelTasks: false
+        directSteering: true
     # Web search with the current conversation route's own key, else a keyless
     # results-page fallback (see README "Web search").
     - id: web-search-auto

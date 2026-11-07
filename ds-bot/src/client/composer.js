@@ -129,6 +129,11 @@ export function ComposerPlus({ sessionId, inputActions, useInput, useRoster, act
   // handler while `ready` re-renders only when steerability flips.
   const inputNow = useRef(undefined)
   const ready = useInput?.((state) => { inputNow.current = state; return steerable(state) }) === true
+  const queuedUsers = useInput?.(state => JSON.stringify((state.queue ?? []).filter(item => item.source?.kind === 'user').map(item => item.id))) ?? '[]'
+  const direct = roster.directSteering === true && !!roster.byId?.[sessionId] && !roster.byId[sessionId].taskId
+  useEffect(() => {
+    if (direct && queuedUsers !== '[]') void actions.steerQueued(sessionId)
+  }, [direct, queuedUsers, sessionId])
   useEffect(() => {
     if (!open) return undefined
     const onDown = (event) => { if (![button.current, menu.current].some(node => node?.contains(event.target))) setOpen(null) }
@@ -217,5 +222,6 @@ export function ComposerPlus({ sessionId, inputActions, useInput, useRoster, act
     shown.files ? h('button', { type: 'button', role: 'menuitem', onClick: attach }, h(PaperclipIcon), h('span', { className: 'bt-menu-label' }, t('Add files'))) : null,
     canReference ? h('button', { type: 'button', role: 'menuitem', onMouseDown: keepComposerFocus, onClick: reference }, h(ChatsIcon), h('span', { className: 'bt-menu-label' }, t('Reference a chat'))) : null,
     canSetGoal(room, roster) ? h('button', { type: 'button', role: 'menuitem', onClick: goal }, h(GoalIcon), h('span', { className: 'bt-menu-label' }, t('Set a goal'))) : null,
+    roster.parallelTasks && roster.byId?.[sessionId] ? h('button', { type: 'button', role: 'menuitem', onClick: () => { setOpen(null); actions.openTasks(target) } }, h(ChatsIcon), h('span', { className: 'bt-menu-label' }, t('Bot tasks'))) : null,
     h('button', { type: 'button', role: 'menuitem', onClick: schedule }, h(ClockIcon), h('span', { className: 'bt-menu-label' }, t('Scheduled task')))), document.body) : null)
 }

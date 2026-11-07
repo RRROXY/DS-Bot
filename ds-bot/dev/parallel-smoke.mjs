@@ -17,6 +17,7 @@ async function api(endpoint, payload = {}) {
   return result.value
 }
 const state = () => api('state')
+const savedTasks = botId => JSON.parse(readFileSync(`${home}/bot/state.json`, 'utf8')).bots[botId].tasks
 const wait = async (label, check) => {
   const end = Date.now() + 90000
   while (Date.now() < end) {
@@ -40,9 +41,10 @@ const parallel = await wait('two tasks execute at the same time', s => s.bots[0]
 const [a, b] = ['任务 A', '任务 B'].map(title => parallel.bots[0].tasks.find(task => task.title === title))
 assert.notEqual(a.sessionId, b.sessionId)
 await api('send', { sessionId: bot.id, text: '并行测试：补充 A' })
-const corrected = await wait('A receives its correction without creating a third task', s => s.bots[0].tasks?.find(task => task.id === a.id)?.result?.includes('parallel-correction-A accepted'))
+const corrected = await wait('A receives its correction without creating a third task', () => savedTasks(bot.id).find(task => task.id === a.id)?.result?.includes('parallel-correction-A accepted'))
 assert.equal(corrected.bots[0].tasks.length, 2)
-assert.equal(Boolean(corrected.bots[0].tasks.find(task => task.id === b.id).result?.includes('parallel-correction-A')), false)
+assert.equal(Boolean(savedTasks(bot.id).find(task => task.id === b.id).result?.includes('parallel-correction-A')), false)
+assert.ok(corrected.bots[0].tasks.every(task => task.result === undefined && task.instruction === undefined))
 await wait('both tasks finish', s => s.bots[0].tasks?.every(task => task.status === 'finished'))
 // Repeat the same dispatch request: no duplicate task or repeated tool work.
 await api('send', { sessionId: bot.id, text: '并行测试：A' })

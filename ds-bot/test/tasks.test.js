@@ -80,6 +80,7 @@ test('completion, failure and max-tokens have distinct truthful statuses', async
   for (const [reason, status] of [['completed', 'finished'], ['error', 'failed'], ['max-tokens', 'failed']]) {
     const s = setup(); const a = await s.start()
     await s.event(a.sessionId, 'turn/start')
+    await s.event(a.sessionId, 'assistant/message', { message: { content: [{ type: 'text', text: 'Internal progress' }] } })
     await s.event(a.sessionId, 'assistant/message', { message: { content: [{ type: 'text', text: 'Result' }] } })
     await s.event(a.sessionId, 'turn/end', { reason: { kind: reason } })
     assert.equal(s.bot.tasks[0].status, status)
@@ -87,6 +88,40 @@ test('completion, failure and max-tokens have distinct truthful statuses', async
     assert.equal(s.made.find(row => row[0] === 'notice')[1].source.kind, 'bot-task')
     assert.match(s.made.find(row => row[0] === 'notice')[1].content[0].text, new RegExp(status))
   }
+})
+
+test('remove and restore finished tasks without losing ownership or duplicate-request protection', async () => {
+  const s = setup(); const a = await s.start('a'); const b = await s.start('b')
+  await assert.rejects(s.rt.archiveBotTask('chief', a.id), /Stop the task/)
+  await s.rt.stopBotTask('chief', a.id)
+  await s.rt.archiveBotTask('chief', a.id)
+  assert.ok(s.bot.tasks[0].archivedAt)
+  assert.equal(s.rt.selfOf(a.sessionId), 'chief')
+  assert.equal((await s.start('a')).id, a.id)
+  assert.equal(s.made.filter(row => row[0] === 'start').length, 2)
+  assert.doesNotMatch(s.rt.taskPrompt('chief'), /"title":"a"/)
+  assert.match(s.rt.taskPrompt('chief'), /"title":"b"/)
+  await s.rt.archiveBotTask('chief', a.id, true)
+  assert.equal(s.bot.tasks[0].archivedAt, undefined)
+  await s.rt.archiveBotTask('chief', 'all')
+  assert.ok(s.bot.tasks[0].archivedAt)
+  assert.equal(s.bot.tasks[1].archivedAt, undefined)
+  assert.equal(s.bot.tasks[1].sessionId, b.sessionId)
+  await assert.rejects(s.rt.archiveBotTask('someone-else', a.id), /Unknown Bot/)
+})
+
+test('failed removal rolls back and explicit continuation restores a removed task', async () => {
+  const s = setup(); const a = await s.start()
+  await s.rt.stopBotTask('chief', a.id)
+  const save = s.rt.save
+  s.rt.save = async () => { throw new Error('disk full') }
+  await assert.rejects(s.rt.archiveBotTask('chief', a.id), /disk full/)
+  assert.equal(s.bot.tasks[0].archivedAt, undefined)
+  s.rt.save = save
+  await s.rt.archiveBotTask('chief', a.id)
+  await s.rt.updateBotTask('chief', a.id, 'Continue')
+  assert.equal(s.bot.tasks[0].archivedAt, undefined)
+  assert.equal(s.bot.tasks[0].status, 'running')
 })
 
 test('interrupted work is blocked until explicit continuation', async () => {
@@ -119,6 +154,12 @@ test('four-task limit and disabled mode', async () => {
   for (let i = 0; i < 4; i++) await s.start(String(i))
   await assert.rejects(s.start('fifth'), /four active tasks/)
   assert.equal(setup({ enabled: false }).rt.isTaskController('chief'), false)
+  const disabled = setup({ enabled: false })
+  disabled.rt.config.directSteering = true
+  assert.equal(disabled.rt.teamTools.length, 0)
+  assert.equal(disabled.ctx.guards.length, 0)
+  assert.match(disabled.rt.taskPrompt('chief'), /Work directly in this chat/)
+  assert.match(disabled.rt.taskPrompt('chief'), /never ask the user to paste a secret into chat or save it to a file/)
 })
 
 test('accepted work with a failed flush stays stoppable and counts towards capacity', async () => {
@@ -139,4 +180,24 @@ test('background context excludes injected instructions and keeps real user atta
   assert.doesNotMatch(s.made.find(row => row[0] === 'start')[2].content[0].text, /INJECTED-CONTEXT/)
   await s.rt.updateBotTask('chief', a.id, 'Use the attached brief', s.parent)
   assert.equal(s.made.find(row => row[0] === 'steer')[2].content[1].attachment.attachmentId, 'file1')
+})
+
+test('dispatch context is bounded, attachments are deduplicated and old results stay out of every-step prompts', async () => {
+  const s = setup()
+  s.parent.session.deriveMessages = () => Array.from({ length: 12 }, (_, index) => ({ role: 'user', source: { kind: 'user' }, content: [
+    { type: 'text', text: `${index === 0 ? 'OLD-CONTEXT' : 'recent'} ${'x'.repeat(4000)}` },
+    { type: 'file', attachment: { attachmentId: 'shared-brief', name: 'brief.txt', bytes: 3 } },
+  ] }))
+  const a = await s.start()
+  const content = s.made.find(row => row[0] === 'start')[2].content
+  assert.ok(content[0].text.length < 6200)
+  assert.doesNotMatch(content[0].text, /OLD-CONTEXT/)
+  assert.match(content[0].text, /Do report/)
+  assert.equal(content.filter(block => block.type === 'file').length, 1)
+  await s.event(a.sessionId, 'assistant/message', { message: { content: [{ type: 'text', text: 'RESULT-MARKER' }] } })
+  await s.event(a.sessionId, 'turn/end', { reason: { kind: 'completed' } })
+  assert.doesNotMatch(s.rt.taskPrompt('chief'), /RESULT-MARKER/)
+  const query = s.rt.teamTools.find(tool => tool.name === 'list_bot_tasks')
+  assert.match(await query.execute({}, { agent: s.parent }), /RESULT-MARKER/)
+  assert.equal(s.made.find(row => row[0] === 'notice')[1].content[0].text.includes('RESULT-MARKER'), true)
 })

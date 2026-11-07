@@ -42,22 +42,19 @@ DS Bot is a bot plugin for [DeepSeek Harness](https://github.com/deepseek-ai/dee
 
 ![Say one sentence to Chief, and it sets up the bots and the group chat](docs/images/team.png)
 
-## Same-Bot parallel tasks (personal fork)
+## Direct conversation in this fork
 
-This fork's plugin bundle enables `parallelTasks: true`. The Bot's main chat
-acknowledges and dispatches work; up to four independent task Sessions can run
-at once under the same identity, model and permissions. Corrections go to the
-matching task at its next step. The model decides the destination and should ask
-when it is ambiguous. Open a task from **Bot tasks** above the composer to inspect
-its full transcript. Use its **Stop** or **Stop all tasks** controls; the ordinary
-composer Stop still stops only the conversation currently open.
+The bundle now sets `parallelTasks: false` and `directSteering: true`. Bots execute
+in their main chat. New user messages sent while work is running are automatically
+steered at the next step through DSH's existing queue API; they do not create task
+Sessions. A model request or tool already executing is not forcibly interrupted.
+Secret cards and questions remain in the same main chat. Routine progress is
+suppressed in favor of results and necessary questions.
 
-Tasks share files and browser state, so conflicting writes must be serialized.
-After a restart, inspect interrupted work and ask in the main chat to continue it.
-Groups and local-agent CLI Bots retain their existing behavior. To restore the
-upstream private-chat execution, set the `bot` entry's `parallelTasks` config to
-`false` and restart DSH. Mock benches can also set `localAgents: false` to prevent
-probing installed agent CLIs. This is a fork feature, not an upstream release.
+The task menu is hidden. Existing task transcripts remain saved, but separate work
+is not automatically resumed. The experimental parallel implementation remains
+available in source; it is not the default. Existing UI preferences and bounded
+transient request retries are preserved.
 
 ## Temporary upstream failures (personal fork)
 

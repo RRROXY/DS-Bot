@@ -286,6 +286,18 @@ test('persisted active tasks become interrupted on load before worker recovery',
   assert.equal(JSON.parse(readFileSync(rt.statePath, 'utf8')).bots.chief.tasks[0].status, 'interrupted')
 })
 
+test('task roster sends navigation metadata without repeating stored instructions and results', async t => {
+  const task = { id: 'work', sessionId: 'task-session', title: 'Work', status: 'finished', updatedAt: 2, archivedAt: 3,
+    instruction: 'original instruction'.repeat(1000), requestId: 'dedupe-key', result: 'complete result'.repeat(1000) }
+  const { call, stop, rt } = start({ version: 1, mainBotIds: ['chief'], bots: { chief: { id: 'chief', name: 'Chief', tasks: [task] } } })
+  t.after(stop)
+  const reply = await call('state')
+  assert.deepEqual(reply.value.bots[0].tasks, [{ id: task.id, sessionId: task.sessionId, title: task.title, status: task.status, updatedAt: 2, archivedAt: 3 }])
+  assert.equal(rt.state.bots.chief.tasks[0].instruction, task.instruction)
+  assert.equal(rt.state.bots.chief.tasks[0].result, task.result)
+  assert.equal(rt.selfOf(task.sessionId), 'chief')
+})
+
 
 test('sidebar sections persist without changing conversation identity or flags', async t => {
   const { call, stop, rt } = start({ version: 1, mainBotId: 'chief', bots: {
