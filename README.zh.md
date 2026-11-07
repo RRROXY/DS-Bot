@@ -125,6 +125,8 @@ DS Bot 会把 `auto` 搜索 provider 选为整个 profile 的后端。禁用 `we
 
 ![bot 详情页：模型、记忆、用量](docs/images/details.zh.png)
 
+想针对某段话追问时，选中聊天正文，再点「引用文本」。选中的原文会进入草稿，可以接着写问题再发送。
+
 ### Main bot
 
 这个 bot 作为你的 chief，它拥有非常高的权限，可以管理其他 bot 和群聊。第一次进入 ds bot 时，默认会有一个 main bot 叫 Chief。你可以直接和它对话，让它引导你完成配置。

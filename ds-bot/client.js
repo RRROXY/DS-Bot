@@ -13157,7 +13157,7 @@ function UserMessageCell({ node, sessionId, useRoster, actions, renderMessageIma
       text !== "" || rest.length > 0 ? (0, import_react30.createElement)(
         "div",
         { className: "bt-ubody", title: clock3(data.time), "data-folded": folded || void 0, onClick: tapTools },
-        control ? (0, import_react30.createElement)("div", { className: "bt-fold-body" }, body) : body,
+        shown !== "" ? (0, import_react30.createElement)("div", { className: control ? "bt-fold-body" : void 0, "data-text-interaction-source": "" }, body) : null,
         control,
         rest.map((block, index) => ui.JsonBlock ? (0, import_react30.createElement)(ui.JsonBlock, { key: index, label: t("Content"), payload: block }) : null)
       ) : null,
@@ -13191,7 +13191,7 @@ var USER_MESSAGE_CSS = `
 var import_react31 = require("react");
 var import_react_dom3 = require("react-dom");
 var mdLabels3 = () => ({ code: { copyLabel: t("Copy"), copiedLabel: t("Copied") }, footnotes: t("Footnotes") });
-function Bubbles({ texts: texts2, roster, selfId, actions, streaming, sessionId, msgKey, useUi, lead, mentions, fold = FOLD_AT, whole, time }) {
+function Bubbles({ texts: texts2, roster, selfId, actions, streaming, quotable = !streaming, sessionId, msgKey, useUi, lead, mentions, fold = FOLD_AT, whole, time }) {
   const onClick = (event) => {
     const target = mentionTarget(event);
     if (target === null) return;
@@ -13218,6 +13218,7 @@ function Bubbles({ texts: texts2, roster, selfId, actions, streaming, sessionId,
         fold,
         picked: msgKey ? reactions?.[index] ?? [] : [],
         live: streaming && last,
+        quotable,
         lead: lead && last ? lead : null,
         whole: last ? whole : void 0
       });
@@ -13246,7 +13247,7 @@ var foldArea = (body, code, codeHead, actions) => code === void 0 ? body : (0, i
   (0, import_react31.createElement)("pre", { className: "bt-fold-pre" }, (0, import_react31.createElement)("code", null, codeHead)),
   (0, import_react31.createElement)(FoldCodeCopy, { code, actions })
 );
-function Bubble({ text, index, roster, selfId, actions, sessionId, msgKey, mentions, fold, picked, live, lead, whole }) {
+function Bubble({ text, index, roster, selfId, actions, sessionId, msgKey, mentions, fold, picked, live, quotable, lead, whole }) {
   const { shown, folded, control, code, codeHead } = useFold(text, { limit: fold, whole, live });
   const key = msgKey ? `${msgKey}:${index}` : void 0;
   const body = shown === "" ? null : (0, import_react31.createElement)(import_dsh_client_ui_primitives.MarkdownText, { text: linkMentions(shown, roster.bots, selfId), streaming: live, labels: mdLabels3(), variant: "compact", fileMentions: mentions });
@@ -13267,8 +13268,8 @@ function Bubble({ text, index, roster, selfId, actions, sessionId, msgKey, menti
       lead,
       (0, import_react31.createElement)(
         "div",
-        { className: "bt-bubble", "data-folded": folded || void 0 },
-        control ? (0, import_react31.createElement)("div", { className: "bt-fold-body" }, area) : area,
+        { className: "bt-bubble", "data-folded": folded || void 0, "data-text-interaction-source": !control && quotable ? "" : void 0 },
+        control ? (0, import_react31.createElement)("div", { className: "bt-fold-body", "data-text-interaction-source": quotable ? "" : void 0 }, area) : area,
         control
       ),
       live ? null : (0, import_react31.createElement)(MessageTools, { text: folded ? text : shown, name: roster.byId[selfId]?.name ?? t("Bot"), sessionId, react: key ? (emoji) => actions.toggleReaction(msgKey, index, emoji) : void 0, actions, open: toolsOpen })
@@ -13489,7 +13490,7 @@ function AssistantCell({ node, groupPart, sessionId, openFile, fileMentions, use
       // time makes one Elapsed show settled + running.
       ...thinking !== void 0 ? { at: typeof thinking.time === "number" ? thinking.time - (ms ?? 0) : void 0 } : { ms }
     }) : null,
-    texts2.length ? (0, import_react31.createElement)(Bubbles, { texts: texts2, roster, selfId, actions, streaming: running, sessionId, msgKey: `${sessionId}:${data.turn}:${node.key ?? data.seq ?? ""}`, useUi, mentions, fold: FOLD_HUGE, time: speaker === void 0 ? data.time : void 0 }) : null
+    texts2.length ? (0, import_react31.createElement)(Bubbles, { texts: texts2, roster, selfId, actions, streaming: running, quotable: data.status === "settled", sessionId, msgKey: `${sessionId}:${data.turn}:${node.key ?? data.seq ?? ""}`, useUi, mentions, fold: FOLD_HUGE, time: speaker === void 0 ? data.time : void 0 }) : null
   );
 }
 var activityParts = (line) => line.split("`").map((part, index) => index % 2 === 1 ? (0, import_react31.createElement)("code", { key: index }, part) : part);
@@ -13675,7 +13676,7 @@ function EarlierUser({ row, actions }) {
     (0, import_react31.createElement)(
       "div",
       { className: "bt-ububble", "data-folded": folded || void 0 },
-      control ? (0, import_react31.createElement)("div", { className: "bt-fold-body" }, area) : area,
+      area ? (0, import_react31.createElement)("div", { className: control ? "bt-fold-body" : void 0, "data-text-interaction-source": "" }, area) : null,
       control,
       row.images ? (0, import_react31.createElement)("span", { className: "bt-uimages" }, row.images === 1 ? t("1 image") : t("{count} images", { count: row.images })) : null
     ),
@@ -14189,7 +14190,7 @@ function GroupReplies({ sessionId, callId, done, content, roster, actions, useUi
         return (0, import_react31.createElement)(
           "div",
           { key: `user-${index}`, className: "bt-urow" },
-          (0, import_react31.createElement)("div", { className: "bt-ububble" }, (0, import_react31.createElement)(import_dsh_client_ui_primitives.MarkdownText, { text: reply.text, labels: mdLabels3(), variant: "compact" })),
+          (0, import_react31.createElement)("div", { className: "bt-ububble", "data-text-interaction-source": "" }, (0, import_react31.createElement)(import_dsh_client_ui_primitives.MarkdownText, { text: reply.text, labels: mdLabels3(), variant: "compact" })),
           reply.via !== void 0 || Number.isFinite(time) ? (0, import_react31.createElement)("div", { className: "bt-utime", title: clockLabel(time) }, ...reply.via !== void 0 ? [(0, import_react31.createElement)(ViaTag, { key: "via", via: reply.via })] : [], Number.isFinite(time) ? messageClock(time) : null) : null
         );
       }

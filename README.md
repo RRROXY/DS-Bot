@@ -130,6 +130,8 @@ Bots also have memory. A bot remembers what you like and uses it in later work. 
 
 ![Bot details: model, memory, usage](docs/images/details.png)
 
+To follow up on a passage, select text in a chat message and click **Quote text**. The excerpt appears in your draft, ready for you to add a question and send.
+
 ### Main bot
 
 The main bot is your chief. It has very high rights: it manages the other bots and the group chats. The first time you open DS Bot, there is already a main bot called Chief. Talk to it, and it walks you through the setup.
