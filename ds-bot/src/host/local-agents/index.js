@@ -33,6 +33,8 @@ const spawnEngine = (kind, route, spec) => (kind === 'acp' ? new AcpEngine(route
     : new ClaudeEngine(route, spec, { findExecutable }))
 
 export function install(rt) {
+  // Isolated mock benches must not probe or launch the user’s installed CLIs.
+  if (rt.config.localAgents === false) return
   const { ctx, state } = rt
   // state.localAgents is replaced by the state load after install; read it
   // each time instead of holding the pre-load object.

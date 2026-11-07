@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -48,7 +48,12 @@ test('apply registers listeners and effects in a fixed order', (t) => {
     'on subagent/end',
     'on tools/result',
     'on session/event',
+    'on agent/request-error (prepend)',
+    'effect ds-bot: transient request recovery',
     'on tools/execute',
+    'on agent/pre-step',
+    'on session/event',
+    'effect ds-bot: task dispatcher',
     'effect ds-bot: identity section',
     'prompt bot-identity 640',
     'on agent/pre-step (prepend)',
@@ -267,4 +272,16 @@ test('a custom agent keeps the local agents adapter live after install', async (
   const entry = (ctx.adapters ?? []).find(candidate => candidate.routes.includes('acp-a1'))
   assert.ok(entry, 'the custom route is registered')
   assert.equal(entry.adapter.disposed, false, 'the adapter survives install')
+})
+
+
+test('persisted active tasks become interrupted on load before worker recovery', async t => {
+  const { rt, stop } = start({ version: 1, mainBotIds: ['chief'], bots: { chief: {
+    id: 'chief', name: 'Chief', tasks: [{ id: 'work', sessionId: 'task-session', title: 'Work', status: 'running' }],
+  } } }, { config: { parallelTasks: true, localAgents: false } })
+  t.after(stop)
+  await rt.load()
+  assert.equal(rt.selfOf('task-session'), 'chief')
+  assert.equal(rt.state.bots.chief.tasks[0].status, 'interrupted')
+  assert.equal(JSON.parse(readFileSync(rt.statePath, 'utf8')).bots.chief.tasks[0].status, 'interrupted')
 })

@@ -209,7 +209,7 @@ export function install(rt) {
       taken?.add(event.data.source.exchangeId)
       forgetQueued(event.data.source.exchangeId)
     }
-    if (!rt.isBotSession(id)) return
+    if (!rt.isBotSession(id) || rt.taskOwners?.has(id)) return
     switch (event.type) {
       case 'turn/start': {
         const owner = rt.groupOwners.get(id)

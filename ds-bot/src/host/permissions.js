@@ -66,7 +66,7 @@ export function install(rt) {
     const applyTo = (sessionId, room = roomOfSession(sessionId)) =>
       setPreset(sessionId, () => (request.seq === mine ? room?.permission ?? bot.permission : undefined))
     const groups = async (warnFail) => {
-      for (const sessionId of rt.groupSessionsOf(bot.id)) {
+      for (const sessionId of [...rt.groupSessionsOf(bot.id), ...(rt.taskSessionsOf?.(bot.id) ?? [])]) {
         if (request.seq !== mine) break
         if (roomOfSession(sessionId)?.permission) continue
         await applyTo(sessionId).catch(warnFail)

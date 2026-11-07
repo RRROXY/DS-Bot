@@ -132,6 +132,22 @@ function decide(body) {
       && textBlocks(message.content).some(value => value.startsWith('Side note:'))).length
     return [text(`Side note: ${pairs} earlier pair(s) seen.`)]
   }
+  // The same-Bot routing fixture uses ordinary user messages and real task tools.
+  // Its workers run a foreground shell command so the bench can observe overlap.
+  const taskLine = textOf(last?.content).trim()
+  if (system.includes('## Responsive task dispatcher') && last?.role === 'user' && !isResults(last)) {
+    const start = /^并行测试：([AB])$/.exec(taskLine)
+    if (start) return [tool('start_bot_task', { title: `任务 ${start[1]}`, instruction: `parallel-fixture-${start[1]}`, request_id: `parallel-${start[1]}` })]
+    if (taskLine === '并行测试：补充 A') {
+      return [tool('list_bot_tasks', {})]
+    }
+    if (taskLine.includes('[Task update:')) return [text('收到任务进度；主聊天继续接收新消息。')]
+  }
+  if (system.includes('## Independent task') && last?.role === 'user') {
+    if (textBlocks(last.content).some(value => value.startsWith('parallel-correction-A'))) return [text('parallel-correction-A accepted; revised title applied.')]
+    const work = /Your task \(do only this work\):\nparallel-fixture-([AB])/.exec(taskLine)
+    if (work && !isResults(last)) return [tool('bash', { command: `sleep 12; printf 'parallel-worker-${work[1]} completed\\n'`, description: 'Run the isolated parallel fixture' })]
+  }
   const me = /You are (.+?), a Bot on the user's team/.exec(system)?.[1] ?? 'Bot'
   const isMain = system.includes('You are the Main Bot')
   const isRelay = system.includes('# Group chat relay')
@@ -195,6 +211,11 @@ function decide(body) {
     const resultText = typeof result.content === 'string' ? result.content : textOf(result.content)
     const call = [...messages].reverse().find(m => m.role === 'assistant' && Array.isArray(m.content) && m.content.some(b => b.type === 'tool_use'))
     const used = call?.content.find(b => b.type === 'tool_use' && b.id === result.tool_use_id) ?? call?.content.find(b => b.type === 'tool_use')
+    if (system.includes('## Independent task') && used?.name === 'bash' && used.input?.command?.includes('parallel-worker-')) return [text(result.is_error ? `parallel-tool-failed: ${resultText}` : resultText)]
+    if (system.includes('## Responsive task dispatcher') && used?.name === 'list_bot_tasks') {
+      const target = JSON.parse(resultText).find(task => task.title === '任务 A')
+      if (target) return [tool('update_bot_task', { task_id: target.id, text: 'parallel-correction-A: use the revised title' })]
+    }
     // "长任务 N [K]": N steps in one turn, each adding about K thousand characters (default 4).
     const openerAt = messages.findLastIndex(m => m.role === 'user' && !isResults(m) && /^长任务\s*\d+/.test(textOf(m.content).trimStart()))
     if (openerAt !== -1 && used?.name === 'list_bots') {

@@ -51,6 +51,7 @@ export function install(rt) {
         bot.instructions ? `\n${bot.instructions}` : '',
         '',
         rt.isMain(self) ? `${MAIN_RULES}\n\n${TEAM_RULES}` : TEAM_RULES,
+        rt.taskPrompt?.(id) ?? '',
       ].join('\n')
     }
     const room = rt.roomOf(id)

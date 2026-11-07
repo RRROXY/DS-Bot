@@ -127,6 +127,8 @@ export function install(rt) {
       migrated = true
     }
     for (const bot of Object.values(state.bots)) {
+      if (bot.tasks !== undefined && !Array.isArray(bot.tasks)) delete bot.tasks
+      if (Array.isArray(bot.tasks)) bot.tasks = bot.tasks.filter(task => task && typeof task.id === 'string' && typeof task.sessionId === 'string')
       if (!Array.isArray(bot.capabilities)) {
         bot.capabilities = []
         migrated = true
@@ -246,7 +248,8 @@ export function install(rt) {
     if (holder !== undefined) warn('ds-bot: %s', readOnly())
     const { migrated, stale } = adopt(readFileState())
     if (holder !== undefined) return
-    if (migrated && stuck === undefined) {
+    const interruptedTasks = rt.interruptSavedTasks?.() ?? false
+    if ((migrated || interruptedTasks) && stuck === undefined) {
       // A failed write must not poison `loaded`: the migrated state stays in
       // memory and the next save() writes it.
       try {
@@ -432,6 +435,7 @@ export function install(rt) {
   // archived and stay readable.
   /** @type {Map<string, string>} */
   const chatOwners = new Map()
+  const taskOwners = new Map()
   /** @type {Map<string, {botId:string, roomId:string}>} */
   const groupOwners = new Map()
   /** @type {Map<string, string>} */
@@ -454,7 +458,7 @@ export function install(rt) {
     } catch {
       return
     }
-    const held = [...chatOwners.keys(), ...groupOwners.keys(), ...roomOwners.keys()].filter(id => archived.has(id))
+    const held = [...chatOwners.keys(), ...taskOwners.keys(), ...groupOwners.keys(), ...roomOwners.keys()].filter(id => archived.has(id))
     if (held.length === 0) return
     restoring = (async () => {
       for (const sessionId of held) {
@@ -466,12 +470,14 @@ export function install(rt) {
   }
   const indexSessions = () => {
     chatOwners.clear()
+    taskOwners.clear()
     groupOwners.clear()
     roomOwners.clear()
     pastOwners.clear()
     for (const bot of Object.values(state.bots)) {
       for (const segment of bot.segments ?? []) pastOwners.set(segment.sessionId, { botId: bot.id })
       chatOwners.set(chatOf(bot.id), bot.id)
+      for (const task of bot.tasks ?? []) if (typeof task.sessionId === 'string') taskOwners.set(task.sessionId, bot.id)
     }
     for (const room of Object.values(state.rooms)) {
       const sessionId = sessionOfRoom(room)
@@ -491,9 +497,9 @@ export function install(rt) {
   }
   // The Bot a Session speaks for: its own chat, one of its group Sessions, or an
   // earlier segment of either.
-  const selfOf = id => chatOwners.get(id) ?? groupOwners.get(id)?.botId ?? pastOwners.get(id)?.botId
+  const selfOf = id => chatOwners.get(id) ?? taskOwners.get(id) ?? groupOwners.get(id)?.botId ?? pastOwners.get(id)?.botId
   // A Session where the Bot speaks now, as opposed to an archived segment.
-  const isBotSession = id => chatOwners.has(id) || groupOwners.has(id)
+  const isBotSession = id => chatOwners.has(id) || taskOwners.has(id) || groupOwners.has(id)
   const groupSessionsOf = botId => Object.values(state.rooms).map(room => room.sessions?.[botId]).filter(Boolean)
   const dropGroupSession = (room, botId) => {
     if (room.memberDirs !== undefined) delete room.memberDirs[botId]
@@ -553,7 +559,7 @@ export function install(rt) {
   Object.assign(rt, {
     state, load, save, refresh, readOnly, own, onSaved, closeCard,
     botOf, roomOf, isMain, chatOf, sessionOfRoom, selfOf, isBotSession,
-    chatOwners, groupOwners, roomOwners, pastOwners,
+    chatOwners, taskOwners, groupOwners, roomOwners, pastOwners,
     groupSessionsOf, dropGroupSession, retireGroupSession, findBot, findRooms, isAdminOf,
   })
 }

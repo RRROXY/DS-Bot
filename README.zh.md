@@ -42,6 +42,30 @@ DS Bot 是一个基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepsee
 
 ![和 Chief 说一句话，它就把 bot 和群聊建好](docs/images/team.zh.png)
 
+## 同一个 Bot 并行任务（个人 fork）
+
+这个 fork 的插件包默认启用 `parallelTasks: true`。Bot 主聊天负责接收和分流，
+同一个身份最多同时运行四个独立任务会话，沿用 Bot 的模型和权限。补充和纠正
+送到匹配任务的下一个执行步骤。分流由模型判断，指代不清时应先询问。
+输入框上方的「Bot 任务」可打开完整任务对话，支持单独停止和停止全部任务；
+原输入框的停止按钮仍只停止当前打开的会话。
+
+各任务共享文件和浏览器状态，冲突写入必须按顺序进行。重启后先检查已中断
+任务，再在主聊天里要求继续。群聊和本地 Agent CLI Bot 维持原行为。
+如需恢复上游的主聊天执行方式，把 `bot` 配置中的 `parallelTasks` 改为 `false`
+并重启 DSH。模拟测试可另设 `localAgents: false`，避免探测本机 Agent CLI。
+这是个人 fork 的新增功能，不是上游发布版。
+
+## 上游暂时不可用时自动重试（个人 fork）
+
+Bot 保留 DSH 原有的重试机制；对服务暂时不可用、连接失败、超时、限流，以及
+精确匹配的 `Provider finish_reason: other` 错误，额外重试最多三次，分别等待
+10、30、60 秒。只重试当前模型请求步骤，保留此前工具结果和当前任务；点击
+停止即可取消等待。耗尽次数后仍如实显示失败，不通过此机制重试鉴权、余额
+不足或请求参数错误。额外请求可能计费。在 `bot` 的 `config` 中设置
+`transientRetry: false` 可关闭这层补充重试。旁聊、摘要等不经过 Agent 循环的
+直接模型调用不在覆盖范围内。
+
 ## 安装
 
 **桌面应用（Windows、macOS、Linux）**

@@ -6,6 +6,26 @@ The DS Bot plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek
 
 Tested with dsh `0.2.2-rc.1` (Web and Desktop).
 
+## Same-Bot tasks in this fork
+
+The bundle enables `parallelTasks: true`: the main chat dispatches independent work
+into visible task Sessions and steers corrections to an existing task. At most four
+tasks run per Bot. Inspect and stop them in **Bot tasks** above the composer. Files
+and browsers remain shared; classification is model-driven. After interruption,
+inspect the task and request continuation in the main chat. Groups and local-agent
+CLI Bots keep their existing behavior. Set `parallelTasks: false` to restore the
+upstream behavior; set `localAgents: false` in mock benches to disable CLI probes.
+
+## Temporary request failures
+
+Bot turns supplement native DSH recovery with at most three retries after 10, 30
+and 60 seconds for temporary upstream failures and the exact pi-ai
+`Provider finish_reason: other` error. Retry stays in the current model step;
+earlier tools are not replayed. Stop cancels the wait, and exhausted retries still
+fail. Authentication, quota and invalid requests are excluded. Additional calls
+may be billed. Set Bot config `transientRetry: false` to disable the supplement.
+Direct side-chat and summary streams outside the agent loop are not covered.
+
 ## Features
 
 - **Long-lived Bots**: each Bot is a dsh Session in the "DS Bot" workspace, with its own name, role, instructions and model.

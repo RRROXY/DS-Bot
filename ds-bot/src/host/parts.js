@@ -276,7 +276,7 @@ export function install(rt) {
     'A Bot conversation makes room on its own, and read_own_chat searches all of it.'))
   const isBotTarget = (target) => {
     const id = target?.session?.id
-    return id !== undefined && (rt.selfOf(id) !== undefined || rt.roomOf(id) !== undefined)
+    return id !== undefined && !rt.taskOwners?.has(id) && (rt.selfOf(id) !== undefined || rt.roomOf(id) !== undefined)
   }
   const ownedByBot = target => isBotTarget(target) && !condensing.has(target.session.id)
   // Condenses a range of a Bot Session the way DS Bot condenses its own parts: the

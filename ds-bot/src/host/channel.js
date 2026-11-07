@@ -36,6 +36,7 @@ export function install(rt) {
   const modelsKey = () => `${rt.cachedCatalog().map(entry => `${entry.ref}${entry.needsKey ? '!' : ''}${entry.reasoning ? `:${JSON.stringify(entry.reasoning)}` : ''}`).join(',')}|${rt.cachedDefault() ?? ''}`
   const view = () => ({
     revision: state.revision,
+    parallelTasks: rt.parallelTasksEnabled === true,
     workspaceId: state.workspaceId ?? null,
     // `mainBotId` is the first Main Bot, which the sidebar shows as its tile.
     mainBotId: state.mainBotIds[0] ?? null,
@@ -511,6 +512,10 @@ export function install(rt) {
         // Side chats in the Bot's panel: each question is an aside on a fresh
         // snapshot of this Bot's private chat; the earlier finished pairs of
         // that chat ride along. Nothing is written into the Session.
+        case 'task-stop':
+          return ok(await rt.stopBotTask(body.botId, body.taskId))
+        case 'task-update':
+          return ok(await rt.updateBotTask(body.botId, body.taskId, body.text))
         case 'side-new': {
           if (typeof body.sessionId !== 'string' || body.sessionId === '') return fail('Nothing to open', 'bot/invalid')
           await rt.load()

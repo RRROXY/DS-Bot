@@ -238,7 +238,7 @@ export function install(rt) {
     const ownChanged = force || bot.appliedModel !== ref || (bot.appliedEffort ?? undefined) !== effort
     const route = { ...splitRef(ref), ...(effort === undefined ? {} : { reasoningEffort: effort }) }
     if (ownChanged) await selectSessionModel(rt.chatOf(bot.id), route)
-    for (const sessionId of rt.groupSessionsOf(bot.id)) {
+    for (const sessionId of [...rt.groupSessionsOf(bot.id), ...(rt.taskSessionsOf?.(bot.id) ?? [])]) {
       const applied = sessionSelections.get(sessionId)
       if (!force && applied !== undefined && sameSelection(applied, route)) continue
       await selectSessionModel(sessionId, route)

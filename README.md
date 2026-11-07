@@ -42,6 +42,34 @@ DS Bot is a bot plugin for [DeepSeek Harness](https://github.com/deepseek-ai/dee
 
 ![Say one sentence to Chief, and it sets up the bots and the group chat](docs/images/team.png)
 
+## Same-Bot parallel tasks (personal fork)
+
+This fork's plugin bundle enables `parallelTasks: true`. The Bot's main chat
+acknowledges and dispatches work; up to four independent task Sessions can run
+at once under the same identity, model and permissions. Corrections go to the
+matching task at its next step. The model decides the destination and should ask
+when it is ambiguous. Open a task from **Bot tasks** above the composer to inspect
+its full transcript. Use its **Stop** or **Stop all tasks** controls; the ordinary
+composer Stop still stops only the conversation currently open.
+
+Tasks share files and browser state, so conflicting writes must be serialized.
+After a restart, inspect interrupted work and ask in the main chat to continue it.
+Groups and local-agent CLI Bots retain their existing behavior. To restore the
+upstream private-chat execution, set the `bot` entry's `parallelTasks` config to
+`false` and restart DSH. Mock benches can also set `localAgents: false` to prevent
+probing installed agent CLIs. This is a fork feature, not an upstream release.
+
+## Temporary upstream failures (personal fork)
+
+Bot turns retain DSH's native recovery and add up to three further attempts after
+10, 30 and 60 seconds for temporary server, transport, timeout and rate-limit
+failures, including the exact `Provider finish_reason: other` error. Recovery
+retries the current model step, preserving earlier tool results and the task.
+Stop cancels the wait. Exhausted retries still report failure; authentication,
+quota and invalid-request errors are not retried by this policy. Extra attempts
+may be billed. Set `transientRetry: false` in the `bot` entry's `config` to disable this supplement.
+Direct side-chat and summary calls outside the agent loop are not covered.
+
 ## Install
 
 **Desktop app (Windows, macOS, Linux)**

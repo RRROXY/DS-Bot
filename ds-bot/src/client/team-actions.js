@@ -109,6 +109,7 @@ export function teamActions({ call, after, partFor, roster, ui, live, cards, hel
     folderPick: () => call('folder-pick'),
     folderList: path => call('folder-list', { path: path ?? '' }),
     setTeamWorkspace: path => after(call('team-workspace', { path })),
+    stopTask: (botId, taskId) => after(call('task-stop', { botId, taskId })),
     deleteBot: id => after(call('delete-bot', { id })),
     releasePrivate: id => after(call('private-release', { id })),
     duplicateBot: id => after(call('duplicate-bot', { id })),

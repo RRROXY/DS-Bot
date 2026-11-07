@@ -14,6 +14,7 @@ import { HeaderPill } from './header.js'
 import { ComposerPlus, ComposerVoice, menuIcons } from './composer.js'
 import { CHATS_SOURCE, atSources } from './at-menu.js'
 import { BtwDock, BtwTurnTail } from './btw.js'
+import { TaskDock, TASK_CSS } from './tasks.js'
 import { SIDE_CSS, sideSource } from './side-chat.js'
 import { VOICE_BUNDLE, closingReplyText, requestPreparation } from './speech.js'
 import { sameVersion } from './dsh-offer.js'
@@ -948,6 +949,8 @@ export function apply(ctx) {
     return () => { observer.disconnect(); offMounted(); offUi() }
   }, 'ds-bot: one right panel')
 
+  ctx.effect(() => installCompiledStyles(TASK_CSS, 'tasks'), 'ds-bot: task styles')
+
   // A Bot surface owns the cells it shadows. It starts far below the -10 that plugins
   // commonly use and goes below whatever already holds the cell, so a plugin that
   // shadows the same cell neither breaks the install nor shows through.
@@ -1095,6 +1098,7 @@ export function apply(ctx) {
       priority: BOT_PRIORITY,
       select: owner => (owner.pendingInteraction?.kind === 'question' ? owner.pendingInteraction : null),
     }, QuestionCard),
+    () => shadow('conversation.input.dock', { id: 'bot-tasks', order: -130, inject: face }, TaskDock),
     () => shadow('conversation.input.dock', { id: 'bot-members', order: -120, inject: face }, MemberDock),
     () => shadow('conversation.input.dock', { id: 'bot-model', order: -110, inject: face }, ModelChoiceDock),
     () => shadow('conversation.input.dock', { id: 'bot-question', order: -100, inject: face }, QuestionDock),

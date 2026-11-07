@@ -680,7 +680,7 @@ export function install(rt) {
       await rt.load()
       const id = exec.agent?.id
       if (rt.groupOwners.has(id)) return 'Question cards only work in your own chat. In a group, ask in your message instead.'
-      if (!rt.chatOwners.has(id)) return `Only Bots on the team can use ask_user. Use ${BLOCKING_QUESTION_TOOL} if it is available in this session, or ask the user in your reply.`
+      if (!rt.chatOwners.has(id) && !rt.taskOwners?.has(id)) return `Only Bots on the team can use ask_user. Use ${BLOCKING_QUESTION_TOOL} if it is available in this session, or ask the user in your reply.`
       const options = (Array.isArray(args.options) ? args.options : [])
         .map(option => (typeof option === 'string' ? { label: option } : option ?? {}))
         .map(option => ({
@@ -721,7 +721,7 @@ export function install(rt) {
       await rt.load()
       const id = exec.agent?.id
       if (rt.groupOwners.has(id)) return 'View cards only work in your own chat. In a group, ask in your message instead.'
-      if (!rt.chatOwners.has(id)) return `Only Bots on the team can use show_view. Use ${BLOCKING_QUESTION_TOOL} if it is available in this session, or ask the user in your reply.`
+      if (!rt.chatOwners.has(id) && !rt.taskOwners?.has(id)) return `Only Bots on the team can use show_view. Use ${BLOCKING_QUESTION_TOOL} if it is available in this session, or ask the user in your reply.`
       const checked = checkShownView(args.title, args.view)
       if (checked.error !== undefined) return checked.error
       const title = checked.title

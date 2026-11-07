@@ -27,6 +27,7 @@ export function indexRoster(value) {
   const byId = {}
   for (const bot of value.bots) {
     for (const id of [...(bot.parts ?? []), bot.sessionId ?? bot.id, bot.id]) byId[id] = bot
+    for (const task of bot.tasks ?? []) byId[task.sessionId] = { ...bot, sessionId: task.sessionId, taskId: task.id }
   }
   const roomsById = {}
   // A group's own Session is a chain of parts like a Bot's chat: `room.id` is its

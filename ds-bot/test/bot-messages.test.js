@@ -891,6 +891,8 @@ test('one turn keeps its identity across two earlier pages', async (t) => {
 test('an image offload failure moves the Bot on, without its latest messages the second time; other request failures do not', async (t) => {
   const { ctx, agents, agentOf, emit, fire, stop } = await start(team())
   t.after(stop)
+  // Request retries have real-loop coverage; this fixture exercises part recovery.
+  rt.config.transientRetry = false
   let made = 0
   ctx.sessionController.create = async () => ({ sessionId: `s${++made}` })
   // Per Session, the events DS Bot reads back; only the previous turn's end matters.

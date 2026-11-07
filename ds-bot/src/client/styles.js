@@ -379,12 +379,10 @@ button.bt-q-opt:active{background:var(--bt-active)}
 .bt-send:disabled{opacity:.35;cursor:default}
 .bt-error{padding:0 14px 10px;color:var(--bt-danger);font-size:12px}
 
-/* Side panels keep their content clear of the Windows caption buttons. A host may set the
-   chrome top to 0 so that dialog masks also cover the caption band; the panel then reaches
-   the top edge, its own surface under the buttons, and the band over it still drags the
-   window. Where the chrome top already clears the title bar the band is 0. */
-html[data-windows-titlebar]:not([data-fullscreen]) :is(.bt-pane,.bt-panel){--bt-caption-band:calc(var(--dsh-windows-titlebar-height,0px) - var(--dsh-frame-chrome-top,0px));padding-top:var(--bt-caption-band)}
-html[data-windows-titlebar]:not([data-fullscreen]) :is(.bt-pane,.bt-panel)::before{content:"";position:absolute;top:0;left:0;right:0;height:var(--bt-caption-band);-webkit-app-region:drag}
+/* Desktop overlays reserve the host's title-bar clearance when their surface starts
+   above it. Fullscreen uses the whole window; an already inset surface adds no gap. */
+html:is([data-windows-titlebar],[data-platform=darwin]):not([data-fullscreen]) :is(.bt-pane,.bt-panel){--bt-caption-band:max(0px,calc(var(--dsh-frame-top-clearance,var(--dsh-windows-titlebar-height,0px)) - var(--dsh-frame-chrome-top,0px)));padding-top:var(--bt-caption-band)}
+html:is([data-windows-titlebar],[data-platform=darwin]):not([data-fullscreen]) :is(.bt-pane,.bt-panel)::before{content:"";position:absolute;top:0;left:0;right:0;height:var(--bt-caption-band);-webkit-app-region:drag}
 .bt-pane{position:fixed;top:var(--dsh-frame-chrome-top,0px);right:0;bottom:0;z-index:45;pointer-events:auto;background:var(--bt-main);color:var(--bt-ink);display:flex;font-family:var(--bt-font)}
 .bt-dialog{flex:1;display:flex;flex-direction:column;min-width:0}
 .bt-dialog .bt-head{height:62px}
@@ -1037,10 +1035,13 @@ body[data-bt-layout=flat] .bt-think{max-width:calc(var(--bt-flat-w) * 100%)}
    fills — even with plain text and no element child — is never taken for empty. */
 [data-step-process]:has(> [data-step-process-body] [data-slot="conversation.chat.node"][data-bt-emptied]):not(:has(> [data-step-process-body] [data-slot="conversation.chat.node"]:not([data-bt-emptied]))){display:none!important}
 [class*="_header"]:has(.bt-head){border-bottom-color:transparent!important;box-shadow:none!important}
+/* Match the Bot sidebar's desktop title-bar clearance. The transcript and goal
+   island reserve the same space so the first message stays below the header. */
+html[data-platform=darwin]:not([data-fullscreen]) body{--bt-chat-top-clear:max(0px,calc(var(--dsh-frame-top-clearance,0px) - var(--dsh-frame-chrome-top,0px)))}
 /* The transcript runs under a floating header pill. */
-header[class*="_header"]:has(.bt-head){position:absolute!important;top:0;left:0;right:0;z-index:8;display:flex!important;padding:10px 0 0!important;background:transparent!important;pointer-events:none;justify-content:center}
-header[class*="_header"]:has(.bt-head)::before{content:"";position:absolute;inset:0 0 auto;height:calc(60px + env(safe-area-inset-top,0px));background:linear-gradient(to bottom,var(--bt-main),color-mix(in srgb,var(--bt-main) 0%,transparent));pointer-events:none;z-index:-1}
-header[class*="_header"]:has(.bt-head)>[class*="_headerLeading"]{position:absolute;left:12px;top:10px;pointer-events:auto}
+header[class*="_header"]:has(.bt-head){position:absolute!important;top:0;left:0;right:0;z-index:8;display:flex!important;padding:calc(10px + var(--bt-chat-top-clear,0px)) 0 0!important;background:transparent!important;pointer-events:none;justify-content:center}
+header[class*="_header"]:has(.bt-head)::before{content:"";position:absolute;inset:0 0 auto;height:calc(60px + var(--bt-chat-top-clear,0px) + env(safe-area-inset-top,0px));background:linear-gradient(to bottom,var(--bt-main),color-mix(in srgb,var(--bt-main) 0%,transparent));pointer-events:none;z-index:-1}
+header[class*="_header"]:has(.bt-head)>[class*="_headerLeading"]{position:absolute;left:12px;top:calc(10px + var(--bt-chat-top-clear,0px));pointer-events:auto}
 header[class*="_header"] .bt-head{flex:1 1 auto;width:100%}
 /* On macOS the shell's header row is the window's drag strip (data-window-drag
    becomes -webkit-app-region:drag). The floating header stays click-through, so
@@ -1068,9 +1069,9 @@ html[data-platform=darwin] header[class*="_header"]:has(.bt-head) :is(a,button,i
 [data-content-phase=hero] [class*="_composerHero"]>[class$="_root"],[data-content-phase=hero] [class*="_heroWorkspaceRow"]{display:none!important}
 [data-content-phase=hero] [class*="_composerHero"] [class*="_input"]{min-height:0!important}
 /* The right sides give back the scrollbar gutter so both edges sit 16px from the column. */
-[class*="_scroll"]:has(> [class*="_column"]){padding:calc(60px + env(safe-area-inset-top,0px)) calc(11px + env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) calc(16px + env(safe-area-inset-left,0px))!important}
+[class*="_scroll"]:has(> [class*="_column"]){padding:calc(60px + var(--bt-chat-top-clear,0px) + env(safe-area-inset-top,0px)) calc(11px + env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) calc(16px + env(safe-area-inset-left,0px))!important}
 /* The goal island's pod hangs off the header over the transcript's first message. */
-body[data-bt-goal] [class*="_scroll"]:has(> [class*="_column"]){padding-top:calc(90px + env(safe-area-inset-top,0px))!important}
+body[data-bt-goal] [class*="_scroll"]:has(> [class*="_column"]){padding-top:calc(90px + var(--bt-chat-top-clear,0px) + env(safe-area-inset-top,0px))!important}
 /* The shell's running status only hosts the activity row (.bt-typing). */
 [data-chat-running]{display:block!important;width:100%;min-height:0!important;margin:0!important;padding:0!important}
 [data-chat-running]>span:not([role=status]){display:none!important}
