@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import { ACCENT_INKS, INKS, luminance } from '../src/client/inks.js'
-import { allThemes, shellTokens, themeCss } from '../src/client/themes.js'
+import { defaultColor } from '../src/client/characters.js'
+import { allThemes, shellTokens, themeCss, userBubbleCss } from '../src/client/themes.js'
 
 // The browser bundle holds every style sheet ds-bot installs; the bundle test
 // keeps it in step with src/client.
@@ -76,6 +77,25 @@ test('the user ink reads on the user surface in every built-in theme and mode', 
       const vars = themeVars(allThemes()[id], dark)
       const ratio = contrast(over(vars['--bt-user-ink'], vars['--bt-user']), over(vars['--bt-user'], vars['--bt-main']))
       assert.ok(ratio >= 4.5, `${id} ${dark ? 'dark' : 'light'}: ${ratio.toFixed(2)}:1`)
+    }
+  }
+})
+
+test('a Bot chat uses the avatar color and readable text in both modes', () => {
+  const id = 'writer'
+  const cases = [
+    [undefined, INKS[defaultColor(id)]],
+    ...Object.entries(INKS),
+    ['#777777', ['#777777', '#777777']],
+  ]
+  for (const [color, fills] of cases) {
+    const rules = userBubbleCss({ id, color }).split('\n')
+    assert.equal(rules.length, 2)
+    for (const [index, rule] of rules.entries()) {
+      const vars = rule.slice(rule.indexOf('{') + 1, -1)
+      const fill = declared(vars, '--bt-user')
+      assert.equal(fill, fills[index])
+      assert.ok(contrast(declared(vars, '--bt-user-ink'), fill) >= 4.5, fill)
     }
   }
 })

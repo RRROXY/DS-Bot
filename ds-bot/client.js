@@ -2278,8 +2278,7 @@ var THEMES = {
     dark: { bg: "#0b1020", sidebar: "#10172a", bubble: "#1a2340", card: "#141c33", text: "#e8edf7", user: "#3b6fd8", userText: "#ffffff", accent: "#4f9dff" }
   }
 };
-var DARK_INK = "#141414";
-var accentInk = (accent) => (luminance(accent) + 0.05) ** 2 > 1.05 * (luminance(DARK_INK) + 0.05) ? DARK_INK : "#ffffff";
+var contrastInk = (fill2, darkInk = "#141414") => (luminance(fill2) + 0.05) ** 2 > 1.05 * (luminance(darkInk) + 0.05) ? darkInk : "#ffffff";
 var rgba = (hex, alpha) => `rgba(${[1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16)).join(",")},${alpha})`;
 function themeVars(mode, dark, accent = mode.accent) {
   return {
@@ -2295,7 +2294,7 @@ function themeVars(mode, dark, accent = mode.accent) {
     "--bt-hover": dark ? "rgba(160,160,160,.12)" : "rgba(119,119,119,.09)",
     "--bt-active": dark ? "rgba(160,160,160,.2)" : "rgba(119,119,119,.17)",
     "--bt-accent": accent,
-    "--bt-accent-ink": accentInk(accent),
+    "--bt-accent-ink": contrastInk(accent),
     "--bt-user": mode.user,
     "--bt-user-ink": mode.userText,
     "--bt-tag-bg": rgba(mode.text, dark ? 0.09 : 0.06),
@@ -2370,6 +2369,13 @@ var layoutOf = (prefs) => prefs?.layout === "flat" ? "flat" : "bubble";
 var thinkingShown = (prefs) => prefs?.thinking === true;
 var widthOf = (prefs) => percent(prefs?.width, 80);
 var flatWidthOf = (prefs) => percent(prefs?.flatWidth, 100);
+function userBubbleCss(bot) {
+  const ink = colorOf(bot);
+  const [light, dark] = isHex(ink) ? [ink, ink] : INKS[ink];
+  const vars = (fill2) => declarations({ "--bt-user": fill2, "--bt-user-ink": contrastInk(fill2, "#000000") });
+  return `body [data-conversation-scroll]{${vars(light)}}
+body[data-ds-dark-theme] [data-conversation-scroll]{${vars(dark)}}`;
+}
 
 // src/shared/mentions.js
 var ALL_WORDS = ["all", "everyone", "所有人", "全体"];
@@ -28156,8 +28162,25 @@ function apply(ctx) {
     () => shadow("shell.overlay", { id: "bot-signin", order: 55, inject: face }, DeepSeekSignIn),
     () => shadow("shell.overlay", { id: "bot-toast", order: 60, inject: face }, ErrorToast)
   ];
+  const installUserBubbleInk = () => {
+    const style = installStyles("", "user-bubble-ink");
+    const render = () => {
+      const bot = roster.getSnapshot().byId[mainView()];
+      const next = bot === void 0 ? "" : userBubbleCss(bot);
+      if (style.textContent !== next) style.textContent = next;
+    };
+    render();
+    const offList = ctx.sessions.list.subscribe(render);
+    const offRoster = roster.subscribe(render);
+    return () => {
+      offList();
+      offRoster();
+      style.remove();
+    };
+  };
   const installConversation = () => [
     () => installCompiledStyles(CONVERSATION_CSS, "conversation"),
+    installUserBubbleInk,
     () => installCompiledStyles(TURN_ERROR_CSS, "turn-errors"),
     () => installCompiledStyles(QUEUE_CSS, "queue"),
     () => installMentions(),

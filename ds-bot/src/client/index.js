@@ -3,7 +3,7 @@ import { isHex, inkText, paintCss } from './inks.js'
 import { DEFAULT_MASK, SHAPES, markupCache, maskOf } from './characters.js'
 import { createSource, EMPTY_ROSTER, indexRoster, isAgentSession } from './sources.js'
 import { teamActions } from './team-actions.js'
-import { themeCss, shellTokens, registry, registerShape, registerTheme, allThemes, layoutOf, widthOf, flatWidthOf } from './themes.js'
+import { themeCss, userBubbleCss, shellTokens, registry, registerShape, registerTheme, allThemes, layoutOf, widthOf, flatWidthOf } from './themes.js'
 import { MENTION_ORIGIN, currentPart } from './text.js'
 import { SHELL_CSS, CONVERSATION_CSS, installStyles, installCompiledStyles } from './styles.js'
 import { lookOf } from './mark.js'
@@ -1056,8 +1056,21 @@ export function apply(ctx) {
     () => shadow('shell.overlay', { id: 'bot-signin', order: 55, inject: face }, DeepSeekSignIn),
     () => shadow('shell.overlay', { id: 'bot-toast', order: 60, inject: face }, ErrorToast),
   ]
+  const installUserBubbleInk = () => {
+    const style = installStyles('', 'user-bubble-ink')
+    const render = () => {
+      const bot = roster.getSnapshot().byId[mainView()]
+      const next = bot === undefined ? '' : userBubbleCss(bot)
+      if (style.textContent !== next) style.textContent = next
+    }
+    render()
+    const offList = ctx.sessions.list.subscribe(render)
+    const offRoster = roster.subscribe(render)
+    return () => { offList(); offRoster(); style.remove() }
+  }
   const installConversation = () => [
     () => installCompiledStyles(CONVERSATION_CSS, 'conversation'),
+    installUserBubbleInk,
     () => installCompiledStyles(TURN_ERROR_CSS, 'turn-errors'),
     () => installCompiledStyles(QUEUE_CSS, 'queue'),
     () => installMentions(),
