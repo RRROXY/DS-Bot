@@ -1187,6 +1187,11 @@ div:has(> nav [class*="_marks"]){display:none!important}
    the host's bubble surface alone would otherwise leave the text unreadable. */
 [class*="_userRow"] [class*="_bubble"],[data-chat-flow-kind=question-reply] [class*="_bubble"],[data-chat-flow-kind=command-input] [class*="_bubble"]{background:var(--bt-user)!important;color:var(--bt-user-ink)!important;border-radius:18px!important;padding:7px 12px!important;font-size:var(--dsh-content-font-size,14px)!important;line-height:calc(var(--dsh-content-font-size,14px) + 8px)!important}
 [class*="_userRow"] [class*="_bubble"] [class*="_markdown"],[class*="_userRow"] [class*="_bubble"] a{color:inherit}
+/* A percentage cap on the native preview is ignored while the bubble sizes to its contents. */
+[data-message-bubble]:has([data-quote-preview]){box-sizing:border-box}
+:is([data-message-bubble],.bt-ubody,.bt-ububble) [data-quote-preview],.bt-ububble blockquote{display:block;max-width:300px;box-sizing:border-box;margin:0 0 4px;padding-inline-start:8px;border-inline-start:2px solid color-mix(in srgb,currentColor 55%,transparent);color:inherit}
+:is([data-message-bubble],.bt-ubody,.bt-ububble) [data-quote-preview]>[aria-hidden=true]{display:none}
+:is([data-message-bubble],.bt-ubody,.bt-ububble) [data-quote-preview-text]{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:inherit}
 /* Sent messages get the hover toolbar below; steering and unsent bubbles keep none. */
 [class*="_userRow"] [class*="_actions"]{display:none!important}
 /* A steering message the Bot has not read yet shows a small unread label under

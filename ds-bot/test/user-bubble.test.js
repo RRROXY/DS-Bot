@@ -112,6 +112,21 @@ test('a Bot chat shares the readable avatar color between the user bubble and vo
   }
 })
 
+test('a sent quote sits above the reply and cannot widen the bubble past the preview', () => {
+  const preview = rulesWith(/border-inline-start:2px solid/g)
+    .find(rule => rule.selector.includes('[data-message-bubble]') && rule.selector.includes('[data-quote-preview]'))
+  assert.ok(preview)
+  assert.equal(declared(preview.body, 'display'), 'block')
+  assert.match(declared(preview.body, 'max-width'), /^\d+px$/)
+  assert.equal(declared(preview.body, 'color'), 'inherit')
+  const text = rulesWith(/text-overflow:ellipsis/g)
+    .find(rule => rule.selector.includes('[data-message-bubble]') && rule.selector.endsWith('[data-quote-preview-text]'))
+  assert.ok(text)
+  assert.equal(declared(text.body, 'display'), 'block')
+  assert.equal(declared(text.body, 'overflow'), 'hidden')
+  assert.equal(declared(text.body, 'color'), 'inherit')
+})
+
 // Text on the accent (send key, new-message pill, primary buttons) takes whichever
 // of the two inks reads better: white on Tangerine was 2.89:1, near-black is 6.38:1.
 // The variables themeCss sets for one mode.
