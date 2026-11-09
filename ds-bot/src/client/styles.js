@@ -119,7 +119,7 @@ body[data-bt-motion=quiet] .bt-mark[data-poke]{cursor:default}
 
 /* The list's intrinsic width must not resize the header when a section opens. */
 .bt-side{display:flex;flex-direction:column;min-width:0;min-height:0;flex:1 1 auto;box-sizing:border-box;gap:2px;padding:0 0 8px;color:var(--bt-ink);font-family:var(--bt-font)}
-.bt-side-top{display:flex;flex:none;justify-content:flex-end;align-items:center;gap:8px;padding:6px 5px 8px 0}
+.bt-side-top{display:flex;flex:none;justify-content:flex-end;align-items:center;gap:8px;padding:2px 0 6px 0}
 .bt-brand{display:inline-flex;align-items:center;gap:6px;margin-right:auto;padding:4px 8px 4px 4px;border:0;border-radius:8px;background:none;cursor:pointer;font-family:inherit;font-size:15px;line-height:20px;font-weight:600;letter-spacing:-.01em;color:var(--bt-ink);white-space:nowrap}
 .bt-brand-whale{display:inline-flex;color:var(--bt-accent)}
 .bt-round{width:36px;height:36px;border-radius:50%;border:1px solid var(--bt-line);background:var(--bt-main);color:var(--bt-ink);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:background-color .12s ease,transform .12s ease}
@@ -139,7 +139,7 @@ body[data-bt-motion=quiet] .bt-mark[data-poke]{cursor:default}
 .bt-tile[aria-current=page]{background:var(--bt-active)}
 .bt-tile-name{font-size:13px;line-height:18px;font-weight:500;max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bt-section{flex:none}
-.bt-section-heading{display:flex;align-items:center;justify-content:space-between;width:100%;padding:16px 10px 8px;border:0;border-radius:8px;background:transparent;color:var(--bt-ink-2);font:inherit;font-size:13px;line-height:20px;cursor:pointer;text-align:left}
+.bt-section-heading{display:flex;align-items:center;justify-content:space-between;width:100%;padding:10px 10px 6px;border:0;border-radius:8px;background:transparent;color:var(--bt-ink-2);font:inherit;font-size:13px;line-height:18px;cursor:pointer;text-align:left}
 .bt-section-heading>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bt-section-heading>span:last-child{flex:none;margin-left:12px}
 .bt-section-heading:hover{background:var(--bt-hover)}
@@ -149,17 +149,17 @@ body[data-bt-motion=quiet] .bt-mark[data-poke]{cursor:default}
 .bt-category-edit :is(input,select){width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--bt-line);border-radius:8px;background:var(--bt-card);color:var(--bt-ink);font:inherit}
 .bt-category-edit footer{display:flex;justify-content:flex-end;gap:8px}
 .bt-chip{font-size:11px;line-height:16px;padding:1px 7px;border-radius:999px;background:var(--bt-tag-bg);border:.5px solid var(--bt-line);color:var(--bt-ink-2);white-space:nowrap;max-width:92px;overflow:hidden;text-overflow:ellipsis}
-.bt-row{display:flex;align-items:center;gap:10px;min-height:64px;padding:10px 8px;border:0;border-radius:12px;background:transparent;color:var(--bt-ink);text-align:left;cursor:pointer;width:100%;box-sizing:border-box;font-family:inherit;transition:background-color .12s ease}
+.bt-row{display:flex;align-items:center;gap:10px;min-height:58px;padding:8px;border:0;border-radius:12px;background:transparent;color:var(--bt-ink);text-align:left;cursor:pointer;width:100%;box-sizing:border-box;font-family:inherit;transition:background-color .12s ease}
 .bt-row:hover{background:var(--bt-hover)}
 .bt-row[aria-current=page]{background:var(--bt-active)}
 /* Inset: the .bt-list scroll box clips anything drawn outside the row. */
 .bt-row:focus-visible{outline:2px solid var(--bt-accent);outline-offset:-2px}
 .bt-row[aria-current=page] .bt-row-name{font-weight:500}
 .bt-row-body{display:flex;flex-direction:column;min-width:0;flex:1 1 auto}
-.bt-row-name{display:flex;align-items:center;gap:6px;min-width:0;font-size:14px;line-height:20px;font-weight:400}
+.bt-row-name{display:flex;align-items:center;gap:6px;min-width:0;font-size:13px;line-height:18px;font-weight:400}
 .bt-row-title{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bt-tag{flex:none;max-width:96px;font-size:12px;line-height:16px;font-weight:400;padding:1px 6px;border-radius:4px;background:var(--bt-tag-bg);color:var(--bt-tag-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bt-row-preview{font-size:13px;line-height:18px;margin-top:2px;color:var(--bt-ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bt-row-preview{font-size:12px;line-height:16px;margin-top:1px;color:var(--bt-ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bt-unread{width:8px;height:8px;border-radius:50%;background:var(--bt-accent);flex:none;margin-right:2px;animation:bt-fade .13s cubic-bezier(.22,1,.36,1)}
 .bt-unread-wait{background:var(--bt-star)}
 /* Our own left column, portalled over the shell's collapsed sidebar. It reaches

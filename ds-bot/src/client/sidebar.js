@@ -1110,8 +1110,9 @@ export const RETURN_CSS = `
 export function BrandMark({ size = 24 }) {
   return h('span', { className: 'bt-brand-whale' }, h(BotMark, { look: MAIN_LOOK, size }))
 }
+// The whale already names the team; a wordmark next to it only repeats the shell.
 export function BrandName() {
-  return h('span', { style: { fontWeight: 600, fontSize: 14 } }, 'DS Bot')
+  return null
 }
 
 // With the whale holding the settings seat, the Bot row is just the account menu;
