@@ -2384,13 +2384,18 @@ var layoutOf = (prefs) => prefs?.layout === "flat" ? "flat" : "bubble";
 var thinkingShown = (prefs) => prefs?.thinking === true;
 var widthOf = (prefs) => percent(prefs?.width, 80);
 var flatWidthOf = (prefs) => percent(prefs?.flatWidth, 100);
-var BUBBLE_LUMINANCE_LIMIT = 1.05 / 4.5 - 0.05;
-function userBubbleCss(bot) {
+var CHAT_LUMINANCE_LIMIT = 1.05 / 4.5 - 0.05;
+function botConversationCss(bot) {
   const ink = colorOf(bot);
   const [light, dark] = isHex(ink) ? [ink, ink] : INKS[ink];
-  const vars = (fill2) => declarations({ "--bt-user": limitLuminance(fill2, BUBBLE_LUMINANCE_LIMIT), "--bt-user-ink": "#ffffff" });
-  return `body [data-conversation-scroll]{${vars(light)}}
-body[data-ds-dark-theme] [data-conversation-scroll]{${vars(dark)}}`;
+  const modeCss = (body, color) => {
+    const fill2 = limitLuminance(color, CHAT_LUMINANCE_LIMIT);
+    const foreground = "#ffffff";
+    return `${body} [data-conversation-scroll]{--bt-user:${fill2};--bt-user-ink:${foreground}}
+${body} .bt-voice{--bt-accent:${fill2};--bt-accent-ink:${foreground}}`;
+  };
+  return `${modeCss("body", light)}
+${modeCss("body[data-ds-dark-theme]", dark)}`;
 }
 
 // src/shared/mentions.js
@@ -28178,11 +28183,11 @@ function apply(ctx) {
     () => shadow("shell.overlay", { id: "bot-signin", order: 55, inject: face }, DeepSeekSignIn),
     () => shadow("shell.overlay", { id: "bot-toast", order: 60, inject: face }, ErrorToast)
   ];
-  const installUserBubbleInk = () => {
-    const style = installStyles("", "user-bubble-ink");
+  const installConversationColors = () => {
+    const style = installStyles("", "conversation-colors");
     const render = () => {
       const bot = roster.getSnapshot().byId[mainView()];
-      const next = bot === void 0 ? "" : userBubbleCss(bot);
+      const next = bot === void 0 ? "" : botConversationCss(bot);
       if (style.textContent !== next) style.textContent = next;
     };
     render();
@@ -28196,7 +28201,7 @@ function apply(ctx) {
   };
   const installConversation = () => [
     () => installCompiledStyles(CONVERSATION_CSS, "conversation"),
-    installUserBubbleInk,
+    installConversationColors,
     () => installCompiledStyles(TURN_ERROR_CSS, "turn-errors"),
     () => installCompiledStyles(QUEUE_CSS, "queue"),
     () => installMentions(),

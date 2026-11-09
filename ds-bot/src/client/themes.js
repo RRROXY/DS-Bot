@@ -127,13 +127,18 @@ export const widthOf = prefs => percent(prefs?.width, 80)
 export const flatWidthOf = prefs => percent(prefs?.flatWidth, 100)
 
 // The maximum fill luminance for a 4.5:1 contrast ratio with white text.
-const BUBBLE_LUMINANCE_LIMIT = 1.05 / 4.5 - 0.05
+const CHAT_LUMINANCE_LIMIT = 1.05 / 4.5 - 0.05
 // Use the avatar's resolved color, including Bots with no color saved. Both mode
 // rules stay in the sheet so DSH can switch themes without a roster update.
-export function userBubbleCss(bot) {
+export function botConversationCss(bot) {
   const ink = colorOf(bot)
   const [light, dark] = isHex(ink) ? [ink, ink] : INKS[ink]
-  const vars = fill => declarations({ '--bt-user': limitLuminance(fill, BUBBLE_LUMINANCE_LIMIT), '--bt-user-ink': '#ffffff' })
-  return `body [data-conversation-scroll]{${vars(light)}}
-body[data-ds-dark-theme] [data-conversation-scroll]{${vars(dark)}}`
+  const modeCss = (body, color) => {
+    const fill = limitLuminance(color, CHAT_LUMINANCE_LIMIT)
+    const foreground = '#ffffff'
+    return `${body} [data-conversation-scroll]{--bt-user:${fill};--bt-user-ink:${foreground}}
+${body} .bt-voice{--bt-accent:${fill};--bt-accent-ink:${foreground}}`
+  }
+  return `${modeCss('body', light)}
+${modeCss('body[data-ds-dark-theme]', dark)}`
 }

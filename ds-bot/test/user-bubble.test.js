@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import { ACCENT_INKS, INKS, luminance } from '../src/client/inks.js'
 import { defaultColor } from '../src/client/characters.js'
-import { allThemes, shellTokens, themeCss, userBubbleCss } from '../src/client/themes.js'
+import { allThemes, botConversationCss, shellTokens, themeCss } from '../src/client/themes.js'
 
 // The browser bundle holds every style sheet ds-bot installs; the bundle test
 // keeps it in step with src/client.
@@ -81,7 +81,7 @@ test('the user ink reads on the user surface in every built-in theme and mode', 
   }
 })
 
-test('a Bot chat keeps white text readable on the avatar color in both modes', () => {
+test('a Bot chat shares the readable avatar color between the user bubble and voice button', () => {
   const id = 'writer'
   const cases = [
     [undefined, INKS[defaultColor(id)]],
@@ -91,15 +91,21 @@ test('a Bot chat keeps white text readable on the avatar color in both modes', (
     ['#ffffff', ['#ffffff', '#ffffff']],
   ]
   for (const [color, fills] of cases) {
-    const rules = userBubbleCss({ id, color }).split('\n')
-    assert.equal(rules.length, 2)
-    for (const [index, rule] of rules.entries()) {
-      const vars = rule.slice(rule.indexOf('{') + 1, -1)
-      const fill = declared(vars, '--bt-user')
-      const ink = declared(vars, '--bt-user-ink')
+    const rules = botConversationCss({ id, color }).split('\n')
+    assert.equal(rules.length, 4)
+    for (const [index, original] of fills.entries()) {
+      const [bubbleRule, voiceRule] = rules.slice(index * 2, index * 2 + 2)
+      const body = index === 0 ? 'body' : 'body[data-ds-dark-theme]'
+      assert.ok(bubbleRule.startsWith(`${body} [data-conversation-scroll]{`))
+      assert.ok(voiceRule.startsWith(`${body} .bt-voice{`))
+      const bubble = bubbleRule.slice(bubbleRule.indexOf('{') + 1, -1)
+      const voice = voiceRule.slice(voiceRule.indexOf('{') + 1, -1)
+      const fill = declared(bubble, '--bt-user')
+      const ink = declared(bubble, '--bt-user-ink')
       assert.equal(ink, '#ffffff')
       assert.ok(contrast(ink, fill) >= 4.5, fill)
-      const original = fills[index]
+      assert.equal(declared(voice, '--bt-accent'), fill)
+      assert.equal(declared(voice, '--bt-accent-ink'), ink)
       if (contrast(ink, original) >= 4.5) assert.equal(fill, original)
       else assert.ok(luminance(fill) < luminance(original), fill)
     }
