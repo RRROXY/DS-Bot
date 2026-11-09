@@ -1,4 +1,4 @@
-import { ACCENT_INKS, INKS, isHex, luminance } from './inks.js'
+import { ACCENT_INKS, INKS, isHex, limitLuminance, luminance } from './inks.js'
 import { SHAPES, colorOf, markupCache, maskCache } from './characters.js'
 import { createSource } from './sources.js'
 
@@ -29,10 +29,9 @@ const THEMES = {
     dark: { bg: '#0b1020', sidebar: '#10172a', bubble: '#1a2340', card: '#141c33', text: '#e8edf7', user: '#3b6fd8', userText: '#ffffff', accent: '#4f9dff' },
   },
 }
-// (L + .05)² > 1.05 × (L(darkInk) + .05) is where dark ink has higher WCAG contrast.
-const contrastInk = (fill, darkInk = '#141414') => (
-  (luminance(fill) + 0.05) ** 2 > 1.05 * (luminance(darkInk) + 0.05) ? darkInk : '#ffffff'
-)
+// (L + .05)² > 1.05 × (L(#141414) + .05) is where dark ink has higher WCAG contrast.
+const DARK_INK = '#141414'
+const accentInk = accent => ((luminance(accent) + 0.05) ** 2 > 1.05 * (luminance(DARK_INK) + 0.05) ? DARK_INK : '#ffffff')
 const rgba = (hex, alpha) => `rgba(${[1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16)).join(',')},${alpha})`
 function themeVars(mode, dark, accent = mode.accent) {
   return {
@@ -41,7 +40,7 @@ function themeVars(mode, dark, accent = mode.accent) {
     '--bt-line': rgba(mode.text, 0.08), '--bt-line-2': rgba(mode.text, 0.15),
     '--bt-hover': dark ? 'rgba(160,160,160,.12)' : 'rgba(119,119,119,.09)',
     '--bt-active': dark ? 'rgba(160,160,160,.2)' : 'rgba(119,119,119,.17)',
-    '--bt-accent': accent, '--bt-accent-ink': contrastInk(accent),
+    '--bt-accent': accent, '--bt-accent-ink': accentInk(accent),
     '--bt-user': mode.user, '--bt-user-ink': mode.userText,
     '--bt-tag-bg': rgba(mode.text, dark ? 0.09 : 0.06), '--bt-tag-ink': rgba(mode.text, 0.58),
   }
@@ -127,12 +126,14 @@ export const thinkingShown = prefs => prefs?.thinking === true
 export const widthOf = prefs => percent(prefs?.width, 80)
 export const flatWidthOf = prefs => percent(prefs?.flatWidth, 100)
 
+// The maximum fill luminance for a 4.5:1 contrast ratio with white text.
+const BUBBLE_LUMINANCE_LIMIT = 1.05 / 4.5 - 0.05
 // Use the avatar's resolved color, including Bots with no color saved. Both mode
 // rules stay in the sheet so DSH can switch themes without a roster update.
 export function userBubbleCss(bot) {
   const ink = colorOf(bot)
   const [light, dark] = isHex(ink) ? [ink, ink] : INKS[ink]
-  const vars = fill => declarations({ '--bt-user': fill, '--bt-user-ink': contrastInk(fill, '#000000') })
+  const vars = fill => declarations({ '--bt-user': limitLuminance(fill, BUBBLE_LUMINANCE_LIMIT), '--bt-user-ink': '#ffffff' })
   return `body [data-conversation-scroll]{${vars(light)}}
 body[data-ds-dark-theme] [data-conversation-scroll]{${vars(dark)}}`
 }

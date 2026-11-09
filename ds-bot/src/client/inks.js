@@ -15,10 +15,26 @@ export const ACCENT_INKS = ['deepseek', 'charcoal', 'graphite', 'rose', 'sky', '
 // Renamed ink ids still found in saved Bots and Bot-to-Bot replies (LEGACY: old id → new id).
 const LEGACY_INKS = { kimi: 'charcoal', zai: 'graphite', minimax: 'rose', stepfun: 'sky', mimo: 'tangerine', qwen: 'cobalt' }
 export const isHex = color => typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color)
-export const luminance = hex => [1, 3, 5]
+const linearRgb = hex => [1, 3, 5]
   .map(index => parseInt(hex.slice(index, index + 2), 16) / 255)
   .map(channel => (channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4))
-  .reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0)
+const rgbLuminance = ([red, green, blue]) => red * 0.2126 + green * 0.7152 + blue * 0.0722
+export const luminance = hex => rgbLuminance(linearRgb(hex))
+
+export function limitLuminance(hex, limit) {
+  const channels = linearRgb(hex)
+  const level = rgbLuminance(channels)
+  if (level <= limit) return hex
+  const scale = limit / level
+  const shaded = channels.map((channel) => {
+    const linear = channel * scale
+    const srgb = linear <= 0.0031308 ? linear * 12.92 : 1.055 * linear ** (1 / 2.4) - 0.055
+    // Round down to keep the rendered 8-bit color within the luminance limit.
+    return Math.floor(srgb * 255).toString(16).padStart(2, '0')
+  })
+  return `#${shaded.join('')}`
+}
+
 const inkName = color => (INKS[color] ? color : INKS[LEGACY_INKS[color]] ? LEGACY_INKS[color] : 'gray')
 export const inkFill = color => (isHex(color) ? color : `var(--bt-ink-${inkName(color)})`)
 // Text in a Bot's color; pure black reads as a heading, so it falls back to gray.

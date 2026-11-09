@@ -81,12 +81,14 @@ test('the user ink reads on the user surface in every built-in theme and mode', 
   }
 })
 
-test('a Bot chat uses the avatar color and readable text in both modes', () => {
+test('a Bot chat keeps white text readable on the avatar color in both modes', () => {
   const id = 'writer'
   const cases = [
     [undefined, INKS[defaultColor(id)]],
     ...Object.entries(INKS),
+    ['#767676', ['#767676', '#767676']],
     ['#777777', ['#777777', '#777777']],
+    ['#ffffff', ['#ffffff', '#ffffff']],
   ]
   for (const [color, fills] of cases) {
     const rules = userBubbleCss({ id, color }).split('\n')
@@ -94,8 +96,12 @@ test('a Bot chat uses the avatar color and readable text in both modes', () => {
     for (const [index, rule] of rules.entries()) {
       const vars = rule.slice(rule.indexOf('{') + 1, -1)
       const fill = declared(vars, '--bt-user')
-      assert.equal(fill, fills[index])
-      assert.ok(contrast(declared(vars, '--bt-user-ink'), fill) >= 4.5, fill)
+      const ink = declared(vars, '--bt-user-ink')
+      assert.equal(ink, '#ffffff')
+      assert.ok(contrast(ink, fill) >= 4.5, fill)
+      const original = fills[index]
+      if (contrast(ink, original) >= 4.5) assert.equal(fill, original)
+      else assert.ok(luminance(fill) < luminance(original), fill)
     }
   }
 })

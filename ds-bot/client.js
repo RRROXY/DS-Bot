@@ -1802,7 +1802,21 @@ var GRADIENTS = { aurora: [[0, "#A4FFB0"], [0.42, "#00F0E4"], [1, "#2E9EF7"]] };
 var ACCENT_INKS = ["deepseek", "charcoal", "graphite", "rose", "sky", "tangerine", "cobalt"];
 var LEGACY_INKS = { kimi: "charcoal", zai: "graphite", minimax: "rose", stepfun: "sky", mimo: "tangerine", qwen: "cobalt" };
 var isHex = (color) => typeof color === "string" && /^#[0-9a-f]{6}$/i.test(color);
-var luminance = (hex) => [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16) / 255).map((channel) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+var linearRgb = (hex) => [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16) / 255).map((channel) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
+var rgbLuminance = ([red, green, blue]) => red * 0.2126 + green * 0.7152 + blue * 0.0722;
+var luminance = (hex) => rgbLuminance(linearRgb(hex));
+function limitLuminance(hex, limit) {
+  const channels = linearRgb(hex);
+  const level = rgbLuminance(channels);
+  if (level <= limit) return hex;
+  const scale = limit / level;
+  const shaded = channels.map((channel) => {
+    const linear = channel * scale;
+    const srgb = linear <= 31308e-7 ? linear * 12.92 : 1.055 * linear ** (1 / 2.4) - 0.055;
+    return Math.floor(srgb * 255).toString(16).padStart(2, "0");
+  });
+  return `#${shaded.join("")}`;
+}
 var inkName = (color) => INKS[color] ? color : INKS[LEGACY_INKS[color]] ? LEGACY_INKS[color] : "gray";
 var inkFill = (color) => isHex(color) ? color : `var(--bt-ink-${inkName(color)})`;
 var inkText = (color) => color === "black" ? "var(--bt-ink-gray)" : inkFill(color);
@@ -2278,7 +2292,8 @@ var THEMES = {
     dark: { bg: "#0b1020", sidebar: "#10172a", bubble: "#1a2340", card: "#141c33", text: "#e8edf7", user: "#3b6fd8", userText: "#ffffff", accent: "#4f9dff" }
   }
 };
-var contrastInk = (fill2, darkInk = "#141414") => (luminance(fill2) + 0.05) ** 2 > 1.05 * (luminance(darkInk) + 0.05) ? darkInk : "#ffffff";
+var DARK_INK = "#141414";
+var accentInk = (accent) => (luminance(accent) + 0.05) ** 2 > 1.05 * (luminance(DARK_INK) + 0.05) ? DARK_INK : "#ffffff";
 var rgba = (hex, alpha) => `rgba(${[1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16)).join(",")},${alpha})`;
 function themeVars(mode, dark, accent = mode.accent) {
   return {
@@ -2294,7 +2309,7 @@ function themeVars(mode, dark, accent = mode.accent) {
     "--bt-hover": dark ? "rgba(160,160,160,.12)" : "rgba(119,119,119,.09)",
     "--bt-active": dark ? "rgba(160,160,160,.2)" : "rgba(119,119,119,.17)",
     "--bt-accent": accent,
-    "--bt-accent-ink": contrastInk(accent),
+    "--bt-accent-ink": accentInk(accent),
     "--bt-user": mode.user,
     "--bt-user-ink": mode.userText,
     "--bt-tag-bg": rgba(mode.text, dark ? 0.09 : 0.06),
@@ -2369,10 +2384,11 @@ var layoutOf = (prefs) => prefs?.layout === "flat" ? "flat" : "bubble";
 var thinkingShown = (prefs) => prefs?.thinking === true;
 var widthOf = (prefs) => percent(prefs?.width, 80);
 var flatWidthOf = (prefs) => percent(prefs?.flatWidth, 100);
+var BUBBLE_LUMINANCE_LIMIT = 1.05 / 4.5 - 0.05;
 function userBubbleCss(bot) {
   const ink = colorOf(bot);
   const [light, dark] = isHex(ink) ? [ink, ink] : INKS[ink];
-  const vars = (fill2) => declarations({ "--bt-user": fill2, "--bt-user-ink": contrastInk(fill2, "#000000") });
+  const vars = (fill2) => declarations({ "--bt-user": limitLuminance(fill2, BUBBLE_LUMINANCE_LIMIT), "--bt-user-ink": "#ffffff" });
   return `body [data-conversation-scroll]{${vars(light)}}
 body[data-ds-dark-theme] [data-conversation-scroll]{${vars(dark)}}`;
 }
